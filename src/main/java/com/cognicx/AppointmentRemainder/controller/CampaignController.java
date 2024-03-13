@@ -1187,4 +1187,13 @@ public class CampaignController {
     public ResponseEntity<GenericResponse> createTenant(@RequestBody TenantDetRequest tenantDetRequest){
         return campaignService.createTenant(tenantDetRequest);
     }
+    @PostMapping("/updateTenant")
+    public ResponseEntity<GenericResponse> updateTenant(@RequestBody TenantDetRequest tenantDetRequest){
+        return campaignService.updateTenant(tenantDetRequest);
+    }
+
+    @GetMapping("/getTenant/list")
+    public ResponseEntity<GenericResponse> getTenantList(){
+        return campaignService.getTenantList();
+    }
 }

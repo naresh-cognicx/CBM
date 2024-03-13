@@ -70,4 +70,8 @@ public interface CampaignService {
     void getMobileDialed(String contactId,String productId,String customerMobile,String status);
 
     ResponseEntity<GenericResponse> createTenant(TenantDetRequest tenantDetRequest);
+
+	ResponseEntity<GenericResponse> getTenantList();
+
+	ResponseEntity<GenericResponse> updateTenant(TenantDetRequest tenantDetRequest);
 }

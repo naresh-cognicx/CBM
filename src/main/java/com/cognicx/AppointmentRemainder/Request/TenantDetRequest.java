@@ -1,20 +1,27 @@
 package com.cognicx.AppointmentRemainder.Request;
 
 
-import com.cognicx.AppointmentRemainder.model.ContactDet;
-import com.cognicx.AppointmentRemainder.model.PartnerDet;
-
 import java.util.Date;
 
 public class TenantDetRequest {
+
+    private Integer tenant_autogen_id;
     private String tenantId;
     private String tenantName;
     private String loginUrl;
     private String adminUser;
     private String password;
     private String address;
-    private ContactDet contactdet;
-    private PartnerDet partner;
+    private String contactId;
+
+    private String contactPerson;
+    private String contactNumber;
+
+    private String contactEmail;
+    private String partnerId;
+    private String partnerName;
+
+    private String partnerEmail;
     private Date onBoarding;
     private Date startContract;
     private Date endContract;
@@ -42,6 +49,14 @@ public class TenantDetRequest {
 
     public String getTenantName() {
         return tenantName;
+    }
+
+    public Integer getTenant_autogen_id() {
+        return tenant_autogen_id;
+    }
+
+    public void setTenant_autogen_id(Integer tenant_autogen_id) {
+        this.tenant_autogen_id = tenant_autogen_id;
     }
 
     public void setTenantName(String tenantName) {
@@ -78,22 +93,6 @@ public class TenantDetRequest {
 
     public void setAddress(String address) {
         this.address = address;
-    }
-
-    public ContactDet getContactdet() {
-        return contactdet;
-    }
-
-    public void setContactdet(ContactDet contactdet) {
-        this.contactdet = contactdet;
-    }
-
-    public PartnerDet getPartner() {
-        return partner;
-    }
-
-    public void setPartner(PartnerDet partner) {
-        this.partner = partner;
     }
 
     public Date getOnBoarding() {
@@ -192,6 +191,62 @@ public class TenantDetRequest {
         this.serviceStatus = serviceStatus;
     }
 
+    public String getContactId() {
+        return contactId;
+    }
+
+    public void setContactId(String contactId) {
+        this.contactId = contactId;
+    }
+
+    public String getContactPerson() {
+        return contactPerson;
+    }
+
+    public void setContactPerson(String contactPerson) {
+        this.contactPerson = contactPerson;
+    }
+
+    public String getContactNumber() {
+        return contactNumber;
+    }
+
+    public void setContactNumber(String contactNumber) {
+        this.contactNumber = contactNumber;
+    }
+
+    public String getContactEmail() {
+        return contactEmail;
+    }
+
+    public void setContactEmail(String contactEmail) {
+        this.contactEmail = contactEmail;
+    }
+
+    public String getPartnerId() {
+        return partnerId;
+    }
+
+    public void setPartnerId(String partnerId) {
+        this.partnerId = partnerId;
+    }
+
+    public String getPartnerName() {
+        return partnerName;
+    }
+
+    public void setPartnerName(String partnerName) {
+        this.partnerName = partnerName;
+    }
+
+    public String getPartnerEmail() {
+        return partnerEmail;
+    }
+
+    public void setPartnerEmail(String partnerEmail) {
+        this.partnerEmail = partnerEmail;
+    }
+
     @Override
     public String toString() {
         return "TenantDetRequest{" +
@@ -201,8 +256,13 @@ public class TenantDetRequest {
                 ", adminUser='" + adminUser + '\'' +
                 ", password='" + password + '\'' +
                 ", address='" + address + '\'' +
-                ", contactdet=" + contactdet.toString() +
-                ", partner=" + partner.toString() +
+                ", contactId='" + contactId + '\'' +
+                ", contactPerson='" + contactPerson + '\'' +
+                ", contactNumber='" + contactNumber + '\'' +
+                ", contactEmail='" + contactEmail + '\'' +
+                ", partnerId='" + partnerId + '\'' +
+                ", partnerName='" + partnerName + '\'' +
+                ", partnerEmail='" + partnerEmail + '\'' +
                 ", onBoarding=" + onBoarding +
                 ", startContract=" + startContract +
                 ", endContract=" + endContract +

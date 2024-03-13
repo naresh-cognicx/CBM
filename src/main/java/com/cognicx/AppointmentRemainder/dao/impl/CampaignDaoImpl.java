@@ -13,9 +13,7 @@ import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
 
 import com.cognicx.AppointmentRemainder.Request.*;
-import com.cognicx.AppointmentRemainder.model.ContactDet;
-import com.cognicx.AppointmentRemainder.model.PartnerDet;
-import com.cognicx.AppointmentRemainder.model.TenantDet;
+import com.cognicx.AppointmentRemainder.response.TenantDetResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -145,6 +143,67 @@ public class CampaignDaoImpl implements CampaignDao {
             return resultList;
         }
         return resultList;
+    }
+
+    public List<Object[]> getTenantDet() {
+        List<Object[]> resultList = null;
+        try {
+            Query queryObj = firstEntityManager.createNativeQuery(CampaignQueryConstant.GET_TENANT_DETAILS);
+            resultList = queryObj.getResultList();
+            logger.info("Result list : " + resultList);
+        } catch (Exception e) {
+            logger.error("Error occured in CampaignDaoImpl::getTenantDet" + e);
+            return resultList;
+        }
+        return resultList;
+    }
+
+    @Override
+    public boolean updateTenantDet(TenantDetRequest tenantDetRequest) {
+        int rowsAffected;
+        try {
+            String sql = CampaignQueryConstant.UPDATE_TENANT_DETAILS;
+
+            Query query = firstEntityManager.createNativeQuery(sql);
+
+            query.setParameter("tenantName", tenantDetRequest.getTenantName());
+            query.setParameter("loginUrl", tenantDetRequest.getLoginUrl());
+            query.setParameter("adminUser", tenantDetRequest.getAdminUser());
+            query.setParameter("password", tenantDetRequest.getPassword());
+            query.setParameter("address", tenantDetRequest.getAddress());
+            query.setParameter("contactPerson", tenantDetRequest.getContactPerson());
+            query.setParameter("contactNumber", tenantDetRequest.getContactNumber());
+            query.setParameter("contactEmail", tenantDetRequest.getContactEmail());
+            query.setParameter("partnerId", tenantDetRequest.getPartnerId());
+            query.setParameter("partnerName", tenantDetRequest.getPartnerName());
+            query.setParameter("partnerEmail", tenantDetRequest.getPartnerEmail());
+            query.setParameter("onBoarding", tenantDetRequest.getOnBoarding());
+            query.setParameter("startContract", tenantDetRequest.getStartContract());
+            query.setParameter("endContract", tenantDetRequest.getEndContract());
+            query.setParameter("billedTo", tenantDetRequest.getBilledTo());
+            query.setParameter("billedCycle", tenantDetRequest.getBilledCycle());
+            query.setParameter("paymentTerms", tenantDetRequest.getPaymentTerms());
+            query.setParameter("concurrency", tenantDetRequest.getConcurrency());
+            query.setParameter("noOflines", tenantDetRequest.getNoOflines());
+            query.setParameter("noOfUsers", tenantDetRequest.getNoOfUsers());
+            query.setParameter("licenseKey", tenantDetRequest.getLicenseKey());
+            query.setParameter("deploymentModel", tenantDetRequest.getDeploymentModel());
+            query.setParameter("serviceStatus", tenantDetRequest.isServiceStatus());
+
+            query.setParameter("tenantId", tenantDetRequest.getTenantId());
+            rowsAffected = query.executeUpdate();
+            if (rowsAffected > 0) {
+
+                logger.info("Tenant details updated successfully");
+                return true;
+            } else {
+                logger.error("Failed to updated tenant details");
+                return false;
+            }
+        } catch (Exception e) {
+            logger.error("Error occurred in CampaignDaoImpl::updateTenantDet" + e);
+            return false;
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -1007,99 +1066,74 @@ public class CampaignDaoImpl implements CampaignDao {
     }
 
     @Override
-    public TenantDetRequest createTenant(TenantDetRequest tenantDetRequest) {
-        TenantDetRequest response = new TenantDetRequest();
-        TenantDet tenantDet = new TenantDet();
+    public TenantDetResponse createTenant(TenantDetRequest tenantDetRequest) {
+        TenantDetResponse response = new TenantDetResponse();
+        int rowsAffected;
+        String tenantId = tenantDetRequest.getTenantId();
+//        int isPresent = checkTenantIsPresentOrNot(tenantId);
         try {
-            if (tenantDetRequest.getTenantId() != null) {
-                tenantDet.setTenantId(tenantDetRequest.getTenantId());
-                tenantDet.setTenantName(tenantDetRequest.getTenantName());
-                tenantDet.setLoginUrl(tenantDetRequest.getLoginUrl());
-                tenantDet.setAdminUser(tenantDetRequest.getAdminUser());
-                tenantDet.setPassword(tenantDetRequest.getPassword());
-                tenantDet.setAddress(tenantDetRequest.getAddress());
-                tenantDet.setConcurrency(tenantDetRequest.getConcurrency());
-                tenantDet.setStartContract(tenantDetRequest.getStartContract());
-                tenantDet.setEndContract(tenantDetRequest.getEndContract());
-                tenantDet.setBilledTo(tenantDetRequest.getBilledTo());
-                tenantDet.setNoOfUsers(tenantDetRequest.getNoOfUsers());
-                tenantDet.setBilledCycle(tenantDetRequest.getBilledCycle());
-                tenantDet.setDeploymentModel(tenantDetRequest.getDeploymentModel());
-                tenantDet.setNoOflines(tenantDetRequest.getNoOflines());
-                tenantDet.setOnBoarding(tenantDetRequest.getOnBoarding());
-                tenantDet.setPaymentTerms(tenantDetRequest.getPaymentTerms());
-                tenantDet.setBilledTo(tenantDetRequest.getBilledTo());
-                tenantDet.setServiceStatus(tenantDetRequest.isServiceStatus());
-                setTenantDet(tenantDet, response);
-                firstEntityManager.persist(tenantDet);
+            if (tenantId != null && (!tenantId.isEmpty())) {
+                Query query = firstEntityManager.createNativeQuery(CampaignQueryConstant.INSERT_TENANT_DETAILS);
+                query.setParameter("tenantId", tenantDetRequest.getTenantId());
+                query.setParameter("tenantName", tenantDetRequest.getTenantName());
+                query.setParameter("loginUrl", tenantDetRequest.getLoginUrl());
+                query.setParameter("adminUser", tenantDetRequest.getAdminUser());
+                query.setParameter("password", tenantDetRequest.getPassword());
+                query.setParameter("address", tenantDetRequest.getAddress());
+                query.setParameter("contactPerson", tenantDetRequest.getContactPerson());
+                query.setParameter("contactNumber", tenantDetRequest.getContactNumber());
+                query.setParameter("contactEmail", tenantDetRequest.getContactEmail());
+                query.setParameter("partnerId", tenantDetRequest.getPartnerId());
+                query.setParameter("partnerName", tenantDetRequest.getPartnerName());
+                query.setParameter("partnerEmail", tenantDetRequest.getPartnerEmail());
+                query.setParameter("onBoarding", tenantDetRequest.getOnBoarding());
+                query.setParameter("startContract", tenantDetRequest.getStartContract());
+                query.setParameter("endContract", tenantDetRequest.getEndContract());
+                query.setParameter("billedTo", tenantDetRequest.getBilledTo());
+                query.setParameter("billedCycle", tenantDetRequest.getBilledCycle());
+                query.setParameter("paymentTerms", tenantDetRequest.getPaymentTerms());
+                query.setParameter("concurrency", tenantDetRequest.getConcurrency());
+                query.setParameter("noOflines", tenantDetRequest.getNoOflines());
+                query.setParameter("noOfUsers", tenantDetRequest.getNoOfUsers());
+                query.setParameter("licenseKey", tenantDetRequest.getLicenseKey());
+                query.setParameter("deploymentModel", tenantDetRequest.getDeploymentModel());
+                query.setParameter("serviceStatus", tenantDetRequest.isServiceStatus());
 
-                try {
-                    Query query = firstEntityManager.createQuery(CampaignQueryConstant.INSERT_CONTACT_DETAILS);
-                    query.setParameter("",tenantDetRequest.getTenantId());
-                    query.setParameter("",tenantDetRequest.getContactdet().getContactId());
-                    query.setParameter("",tenantDetRequest.getContactdet().getContactPerson());
-                    query.setParameter("",tenantDetRequest.getContactdet().getContactNumber());
-                    query.setParameter("",tenantDetRequest.getContactdet().getContactEmail());
-                    query.executeUpdate();
-                }catch (Exception e){
-                    logger.error("Error on insert contact details "+e.getMessage());
-                }
-                try {
-                    Query query = firstEntityManager.createQuery(CampaignQueryConstant.INSERT_PARTNER_DETAILS);
-                    query.setParameter("",tenantDetRequest.getTenantId());
-                    query.setParameter("",tenantDetRequest.getPartner().getPartnerId());
-                    query.setParameter("",tenantDetRequest.getPartner().getPartnerName());
-                    query.setParameter("",tenantDetRequest.getPartner().getPartnerEmail());
-                    query.executeUpdate();
-                }catch (Exception e){
-                    logger.error("Error on insert partner details "+e.getMessage());
-                }
+                rowsAffected = query.executeUpdate();
 
-                return response;
+                if (rowsAffected > 0) {
+                    logger.info("Tenant details inserted successfully");
+                    response.setTenantId(tenantDetRequest.getTenantId());
+                    response.setTenantName(tenantDetRequest.getTenantName());
+                    response.setMessage("Tenant details created successfully");
+                } else {
+                    response.setTenantId(tenantDetRequest.getTenantId());
+                    response.setTenantName(tenantDetRequest.getTenantName());
+                    response.setMessage("Failed to insert tenant details");
+                    logger.error("Failed to insert tenant details");
+                }
             } else {
-                logger.error("Error invoked on the create tenant");
+                response.setTenantId(tenantId);
+                response.setTenantName(null);
+                response.setMessage("Tenant Id details is already present : " + tenantDetRequest.getTenantId());
+                logger.error("Tenant Id details is already present : " + tenantDetRequest.getTenantId());
             }
         } catch (Exception e) {
-            logger.error("Error invoked on the create tenant : " + e.getMessage());
+            logger.error("Error invoked on the create TenantDet : " + e.getMessage());
         }
         return response;
     }
 
-    private List<TenantDetRequest> getTenantDet(){
-        List<TenantDetRequest> tenantDetRequestList = new ArrayList<>();
-        List<TenantDet> tenantDetList = new ArrayList<>();
-        List<ContactDet>contactDetList = new ArrayList<>();
-        List<PartnerDet> partnerDetList = new ArrayList<>();
+    private int checkTenantIsPresentOrNot(String tenantId) {
+        int count = 1;
         try {
-            Query query = firstEntityManager.createQuery("SELECT t FROM TenantDet t", TenantDet.class);
-            tenantDetList = query.getResultList();
-        }catch (Exception e){
-            logger.error("Error invoked on the getting list of details (getTenantDet()): "+e.getMessage());
+            String sql = "SELECT COUNT(*) FROM appointment_remainder.tenant_det WHERE tenantId = tenantId4";
+            Query query = firstEntityManager.createNativeQuery(sql);
+            count = query.executeUpdate();
+            logger.error("Counting of the tenantId is present "+count);
+        } catch (Exception e) {
+            logger.error("Error on checkTenantIsPresentOrNot : " + e.getMessage());
         }
-    }
-
-    private void setTenantDet(TenantDet tenantDetRequest, TenantDetRequest tenantDet) {
-        if (tenantDetRequest.getTenantId() != null) {
-            tenantDet.setTenantId(tenantDetRequest.getTenantId());
-            tenantDet.setTenantName(tenantDetRequest.getTenantName());
-            tenantDet.setLoginUrl(tenantDetRequest.getLoginUrl());
-            tenantDet.setAdminUser(tenantDetRequest.getAdminUser());
-            tenantDet.setPassword(tenantDetRequest.getPassword());
-            tenantDet.setAddress(tenantDetRequest.getAddress());
-            tenantDet.setConcurrency(tenantDetRequest.getConcurrency());
-            tenantDet.setStartContract(tenantDetRequest.getStartContract());
-            tenantDet.setEndContract(tenantDetRequest.getEndContract());
-            tenantDet.setBilledTo(tenantDetRequest.getBilledTo());
-            tenantDet.setNoOfUsers(tenantDetRequest.getNoOfUsers());
-            tenantDet.setBilledCycle(tenantDetRequest.getBilledCycle());
-            tenantDet.setDeploymentModel(tenantDetRequest.getDeploymentModel());
-            tenantDet.setNoOflines(tenantDetRequest.getNoOflines());
-            tenantDet.setOnBoarding(tenantDetRequest.getOnBoarding());
-            tenantDet.setPaymentTerms(tenantDetRequest.getPaymentTerms());
-            tenantDet.setBilledTo(tenantDetRequest.getBilledTo());
-            tenantDet.setServiceStatus(tenantDetRequest.isServiceStatus());
-        } else {
-            logger.error("Error setting the response ... ");
-        }
+        return count;
     }
 }

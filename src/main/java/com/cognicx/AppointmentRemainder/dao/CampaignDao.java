@@ -10,6 +10,7 @@ import com.cognicx.AppointmentRemainder.Dto.RetryCountDto;
 import com.cognicx.AppointmentRemainder.Dto.RetryDetailsDet;
 import com.cognicx.AppointmentRemainder.Dto.UploadHistoryDto;
 import com.cognicx.AppointmentRemainder.Request.*;
+import com.cognicx.AppointmentRemainder.response.TenantDetResponse;
 
 public interface CampaignDao {
 
@@ -78,5 +79,9 @@ public interface CampaignDao {
 
 	void getMobileDialed(String contactId, String productId, String customerMobile, String status);
 
-    TenantDetRequest createTenant(TenantDetRequest tenantDetRequest);
+    TenantDetResponse createTenant(TenantDetRequest tenantDetRequest);
+
+	List<Object[]> getTenantDet();
+
+	boolean updateTenantDet(TenantDetRequest tenantDetRequest);
 }
