@@ -22,7 +22,6 @@ public class CampaignDetRequest {
 	private String callBefore;
 	private boolean schedulerEnabled;
 	private String dncId;
-
 	private List<CampaignWeekDetRequest> weekDaysTime;
 
 	public String getCampaignName() {

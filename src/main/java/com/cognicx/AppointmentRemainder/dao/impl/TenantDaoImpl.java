@@ -1,8 +1,10 @@
 package com.cognicx.AppointmentRemainder.dao.impl;
 
+import com.cognicx.AppointmentRemainder.Request.LicenseRequestDet;
 import com.cognicx.AppointmentRemainder.Request.TenantDetRequest;
 import com.cognicx.AppointmentRemainder.constant.ApplicationConstant;
 import com.cognicx.AppointmentRemainder.constant.CampaignQueryConstant;
+import com.cognicx.AppointmentRemainder.constant.TenantQueryConstant;
 import com.cognicx.AppointmentRemainder.dao.TenantDao;
 import com.cognicx.AppointmentRemainder.response.TenantDetResponse;
 import org.slf4j.Logger;
@@ -13,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
+import java.util.ArrayList;
 import java.util.List;
 
 @Repository("TenantDao")
@@ -28,7 +31,7 @@ public class TenantDaoImpl implements TenantDao {
     public boolean updateTenantDet(TenantDetRequest tenantDetRequest) {
         int rowsAffected;
         try {
-            String sql = CampaignQueryConstant.UPDATE_TENANT_DETAILS;
+            String sql = TenantQueryConstant.UPDATE_TENANT_DETAILS;
             Query query = firstEntityManager.createNativeQuery(sql);
             query.setParameter("tenantName", tenantDetRequest.getTenantName());
             query.setParameter("loginUrl", tenantDetRequest.getLoginUrl());
@@ -74,10 +77,10 @@ public class TenantDaoImpl implements TenantDao {
         int rowsAffected;
         String tenantId = tenantDetRequest.getTenantId();
         int isPresent = checkTenantIsPresentOrNot(tenantId);
-        logger.error("Is Present : "+isPresent);
+        logger.error("Is Present : " + isPresent);
         try {
-            if (tenantId != null && (!tenantId.isEmpty()) && (isPresent==0)) {
-                Query query = firstEntityManager.createNativeQuery(CampaignQueryConstant.INSERT_TENANT_DETAILS);
+            if (tenantId != null && (!tenantId.isEmpty()) && (isPresent == 0)) {
+                Query query = firstEntityManager.createNativeQuery(TenantQueryConstant.INSERT_TENANT_DETAILS);
                 query.setParameter("tenantId", tenantDetRequest.getTenantId());
                 query.setParameter("tenantName", tenantDetRequest.getTenantName());
                 query.setParameter("loginUrl", tenantDetRequest.getLoginUrl());
@@ -131,7 +134,7 @@ public class TenantDaoImpl implements TenantDao {
     public List<Object[]> getTenantDet() {
         List<Object[]> resultList = null;
         try {
-            Query queryObj = firstEntityManager.createNativeQuery(CampaignQueryConstant.GET_TENANT_DETAILS);
+            Query queryObj = firstEntityManager.createNativeQuery(TenantQueryConstant.GET_TENANT_DETAILS);
             resultList = queryObj.getResultList();
             logger.info("Result list : " + resultList);
         } catch (Exception e) {
@@ -140,10 +143,61 @@ public class TenantDaoImpl implements TenantDao {
         }
         return resultList;
     }
+
+    @Override
+    public boolean updateLicenseKey(String licenseKey, String tenantId) {
+        int rowsAffected;
+        try {
+            String sql = TenantQueryConstant.UPDATE_LICENSE_KEY;
+//            String sql = "UPDATE appointment_remainder.tenant_det SET licenseKey =:licenseKey WHERE tenantId =:tenantId";
+            Query query = firstEntityManager.createNativeQuery(sql);
+            query.setParameter("licenseKey", licenseKey);
+            query.setParameter("tenantId", tenantId);
+            rowsAffected = query.executeUpdate();
+            if (rowsAffected > 0) {
+                logger.info("license key updated successfully");
+                return true;
+            } else {
+                logger.error("Failed to updated licensekey details");
+                return false;
+            }
+        } catch (Exception e) {
+            logger.error("Error license key updating " + e.getMessage());
+            return false;
+        }
+    }
+
+    @Override
+    public List<Object[]> getValuetoGeneratelicense(LicenseRequestDet licenseRequestDet) {
+        List<Object[]> list = new ArrayList<>();
+        try {
+            String sql = TenantQueryConstant.GENERATE_LICENSE_VALUES;
+            Query query = firstEntityManager.createNativeQuery(sql);
+            query.setParameter(1,licenseRequestDet.isCrmIntegration());
+            query.setParameter(2,licenseRequestDet.isSipGateway());
+            query.setParameter(3,licenseRequestDet.isSmsGateway());
+            query.setParameter(4,licenseRequestDet.isReports());
+            query.setParameter(5,licenseRequestDet.isVoiceMail());
+            query.setParameter(6,licenseRequestDet.isCallRecording());
+            query.setParameter(7,licenseRequestDet.isAgentDesktop());
+            query.setParameter(8,licenseRequestDet.isAgentPopup());
+            query.setParameter(9,licenseRequestDet.isEmailGateway());
+            query.setParameter(10,licenseRequestDet.isTtsEngine());
+            query.setParameter(11,licenseRequestDet.isMultiTimeZone());
+            query.setParameter(12,licenseRequestDet.isMultiLevelIvr());
+            query.setParameter(13,licenseRequestDet.isDashboard());
+            list = query.getResultList();
+        }catch (Exception e){
+            logger.error("Error on tenant DAO Impl getValuetoGeneratelicense() "+e.getMessage());
+        }
+        return list;
+    }
+
     private int checkTenantIsPresentOrNot(String tenantId) {
         int count = 0; // Initialize count to 0
         try {
-            String sql = "SELECT COUNT(*) FROM appointment_remainder.tenant_det WHERE tenantId = :tenantId";
+//            String sql = "SELECT COUNT(*) FROM appointment_remainder.tenant_det WHERE tenantId = :tenantId";
+            String sql = TenantQueryConstant.CHECK_TENANT_IS_PRESENT_OR_NOT;
             Query query = firstEntityManager.createNativeQuery(sql);
             query.setParameter("tenantId", tenantId);
             count = ((Number) query.getSingleResult()).intValue();

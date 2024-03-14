@@ -124,31 +124,6 @@ public class CampaignQueryConstant {
 	public static final String GET_DNC_CONTACT = "select count(*) from appointment_remainder.DNC_Contact where DNCID=:DNCID";
 	public static final String GET_DNC_CONTACT_DET = "select contactNumber from appointment_remainder.DNC_Contact where DNCID=:DNCID";
 
-	public static final String UPDATE_TENANT_DETAILS = "UPDATE appointment_remainder.tenant_det " +
-			"SET tenantName = :tenantName, loginUrl = :loginUrl, adminUser = :adminUser, " +
-			"password = :password, address = :address, contactPerson = :contactPerson, " +
-			"contactNumber = :contactNumber, contactEmail = :contactEmail, partnerId = :partnerId, " +
-			"partnerName = :partnerName, partnerEmail = :partnerEmail, onBoarding = :onBoarding, " +
-			"startContract = :startContract, endContract = :endContract, billedTo = :billedTo, " +
-			"billedCycle = :billedCycle, paymentTerms = :paymentTerms, concurrency = :concurrency, " +
-			"noOflines = :noOflines, noOfUsers = :noOfUsers, licenseKey = :licenseKey, " +
-			"deploymentModel = :deploymentModel, serviceStatus = :serviceStatus " +
-			"WHERE tenantId = :tenantId";
-	public static final String INSERT_TENANT_DETAILS = "INSERT INTO appointment_remainder.tenant_det "
-			+ "(tenantId, tenantName, loginUrl, adminUser, password, address, "
-			+ "contactPerson, contactNumber, contactEmail, partnerId, partnerName, "
-			+ "partnerEmail, onBoarding, startContract, endContract, billedTo, "
-			+ "billedCycle, paymentTerms, concurrency, noOflines, noOfUsers, "
-			+ "licenseKey, deploymentModel, serviceStatus) "
-			+ "VALUES "
-			+ "(:tenantId, :tenantName, :loginUrl, :adminUser, :password, :address, "
-			+ ":contactPerson, :contactNumber, :contactEmail, :partnerId, :partnerName, "
-			+ ":partnerEmail, :onBoarding, :startContract, :endContract, :billedTo, "
-			+ ":billedCycle, :paymentTerms, :concurrency, :noOflines, :noOfUsers, "
-			+ ":licenseKey, :deploymentModel, :serviceStatus)";
-
-	public static final String GET_TENANT_DETAILS = "SELECT tenant_auto_id, tenantId, tenantName, loginUrl, adminUser, password, address, contactPerson, contactNumber, contactEmail, partnerId, partnerName, partnerEmail, onBoarding, startContract, endContract, billedTo, billedCycle, paymentTerms, concurrency, noOflines, noOfUsers, licenseKey, deploymentModel, serviceStatus FROM appointment_remainder.tenant_det";
-
 	public static final String COUNT_ACTIVE_CONTACT_DET = "SELECT COUNT(*) FROM appointment_remainder.active_contact_det WHERE productid=:productId AND status=:status";
 
 

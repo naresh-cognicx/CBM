@@ -54,7 +54,4 @@ public class DispositionController {
 		logger.info("Updating Dispostion Detail");
 		return dispositionService.updateDisposition(dispostionDetRequest);
 	}
-	
-	
-	
 }

@@ -1,5 +1,6 @@
 package com.cognicx.AppointmentRemainder.controller;
 
+import com.cognicx.AppointmentRemainder.Request.LicenseRequestDet;
 import com.cognicx.AppointmentRemainder.Request.TenantDetRequest;
 import com.cognicx.AppointmentRemainder.response.GenericResponse;
 import com.cognicx.AppointmentRemainder.service.TenantService;
@@ -38,5 +39,10 @@ public class TenantController {
     public ResponseEntity<GenericResponse> getTenantList(){
         logger.info("Invoked get list of Tenant details API");
         return tenantService.getTenantList();
+    }
+
+    @PostMapping("/generateLicensekey")
+    public ResponseEntity<GenericResponse>generateLicense(@RequestBody LicenseRequestDet licenseRequestDet){
+        return tenantService.generateLicense(licenseRequestDet);
     }
 }

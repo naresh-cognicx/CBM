@@ -49,6 +49,4 @@ public class UserGroupController {
 			throws ParseException, JsonParseException, JsonMappingException, IOException {
 		return usergroupService.createUsergroup(usergroupDetRequest);
 	}
-
-	
 }
