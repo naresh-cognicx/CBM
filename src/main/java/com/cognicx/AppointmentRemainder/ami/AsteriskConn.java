@@ -35,10 +35,10 @@ public class AsteriskConn implements ManagerEventListener,AsteriskServerListener
 
 	@Value("${asterisk.manager.password}")
 	private String password;
-	
+
 	@Autowired
 	AsteriskService asteriskService;
-	
+
 	private static Logger logger = LoggerFactory.getLogger(CampaignServiceImpl.class);
 
 	@Bean
@@ -52,12 +52,10 @@ public class AsteriskConn implements ManagerEventListener,AsteriskServerListener
 			managerConnection.registerUserEventClass(calldialEvent.class);
 			managerConnection.registerUserEventClass(callhangupEvent.class);
 			managerConnection.registerUserEventClass(callconnecedEvent.class);
-			managerConnection.registerUserEventClass(CallCompleted.class);
-			
+
 		} catch (Exception e) {
-			logger.error("Connection to Asterisk failed: " + e.getMessage());
 			e.printStackTrace();
-		} 
+		}
 		System.out.println("Asterisk Connection Created");
 		return managerConnection;
 	}
@@ -70,7 +68,7 @@ public class AsteriskConn implements ManagerEventListener,AsteriskServerListener
 			UserEvent userEvent=(UserEvent) event;
 			if(event instanceof calldialEvent) {
 				calldialEvent callDial=(calldialEvent) event;
-				asteriskService.insertDialContDetails(userEvent);
+//				asteriskService.insertDialContDetails(userEvent);
 			}else if(event instanceof callconnecedEvent) {
 				callconnecedEvent callConn=(callconnecedEvent) event;
 				asteriskService.insertActiveContDetails(userEvent);

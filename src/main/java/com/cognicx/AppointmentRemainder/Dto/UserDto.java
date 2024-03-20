@@ -1,6 +1,8 @@
 package com.cognicx.AppointmentRemainder.Dto;
 
 import java.math.BigInteger;
+
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -11,11 +13,11 @@ import java.util.Set;
 
 import org.springframework.security.core.GrantedAuthority;
 
-import com.cognicx.AppointmentRemainder.Request.UserRegionRequest;
-import com.cognicx.AppointmentRemainder.model.Reports;
-import com.cognicx.AppointmentRemainder.model.Roles;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.cognicx.AppointmentRemainder.message.request.UserRegionRequest;
+import com.cognicx.AppointmentRemainder.model.Reports;
+import com.cognicx.AppointmentRemainder.model.Roles;
 
 @JsonInclude(Include.NON_EMPTY)
 public class UserDto {
@@ -59,7 +61,6 @@ public class UserDto {
 	private boolean editFlag;
 	private String approverComment;
 	private String approvedUserId;
-
 	private String groupId;
 	private String groupName;
 

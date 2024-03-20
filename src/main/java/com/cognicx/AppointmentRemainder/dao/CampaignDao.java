@@ -6,11 +6,18 @@ import java.util.Map;
 
 import com.cognicx.AppointmentRemainder.Dto.ContactDetDto;
 import com.cognicx.AppointmentRemainder.Dto.CustomerDataDto;
+import com.cognicx.AppointmentRemainder.Dto.DncContactDto;
 import com.cognicx.AppointmentRemainder.Dto.RetryCountDto;
 import com.cognicx.AppointmentRemainder.Dto.RetryDetailsDet;
+import com.cognicx.AppointmentRemainder.Dto.SurveyContactDetDto;
 import com.cognicx.AppointmentRemainder.Dto.UploadHistoryDto;
-import com.cognicx.AppointmentRemainder.Request.*;
-import com.cognicx.AppointmentRemainder.response.TenantDetResponse;
+import com.cognicx.AppointmentRemainder.Request.CampaignDetRequest;
+import com.cognicx.AppointmentRemainder.Request.CampaignStatus;
+import com.cognicx.AppointmentRemainder.Request.CampaignWeekDetRequest;
+import com.cognicx.AppointmentRemainder.Request.DNCDetRequest;
+import com.cognicx.AppointmentRemainder.Request.ReportRequest;
+import com.cognicx.AppointmentRemainder.Request.SurveyDetRequest;
+import com.cognicx.AppointmentRemainder.Request.UpdateCallDetRequest;
 
 public interface CampaignDao {
 
@@ -18,8 +25,11 @@ public interface CampaignDao {
 
 	Map<String, List<CampaignWeekDetRequest>> getCampaignWeekDet();
 
+	List<Object[]> getCampaignDet(String userGroup);
+
 	List<Object[]> getCampaignDet();
 
+	
 	boolean updateCampaign(CampaignDetRequest campaignDetRequest) throws Exception;
 
 	boolean updateCallDetail(UpdateCallDetRequest updateCallDetRequest) throws Exception;
@@ -27,6 +37,7 @@ public interface CampaignDao {
 	boolean createContact(ContactDetDto contactDetDto) throws Exception;
 
 	Map<String, List<ContactDetDto>> getContactDet();
+	
 
 	boolean validateCampaignName(CampaignDetRequest campaignDetRequest);
 
@@ -49,11 +60,12 @@ public interface CampaignDao {
 	List<RetryDetailsDet> getCallRetryDetails(String contact_id);
 
 	RetryCountDto getRetryReport(ReportRequest reportRequest);
-
+	RetryCountDto getRetryReport(ReportRequest reportRequest,String userGroup);
 	List<Object[]> getLeadWiseSummary(ReportRequest reportRequest);
+	List<Object[]> getLeadWiseSummary(ReportRequest reportRequest,String userGroup);
 
 	List<Object[]> getCallVolumeReport(ReportRequest reportRequest);
-
+	List<Object[]> getCallVolumeReport(ReportRequest reportRequest,String userGroup);
 	boolean createDummyContact(ContactDetDto contactDetDto) throws Exception;
 
 	//Added on 05/02/2024	
@@ -67,21 +79,35 @@ public interface CampaignDao {
 	Integer getCampaignBasedContactCount(String campaignID) throws Exception;
 	Integer getCampaginBasedContactStatus(String campaignID,String disposition) throws Exception;
 
-	 boolean updateActiveContDetails(String calluid,String status,String productid,String connectedlinenum) throws Exception;
+//	boolean updateActiveContDetails(String calluid,String status,String productid,String connectedlinenum,String errorcode) throws Exception;
+//
+//	boolean insertActiveContDetails(String calluid,String status,String productid,String connectedlinenum) throws Exception;
+
+//	Integer getActiveContDetails(String campaignID) throws Exception;
+
+	Integer getActiveContErrorDetails(String campaignID,String[] errorcodes) throws Exception;
+	
+	boolean insertSurveyContactDet(Map<String,Object> mapSurveyContact)throws Exception; 
+	
+	boolean createDnc(DNCDetRequest dNCDetRequest);
+
+	List<Object[]> getdnsDet();
+
+	boolean updateDns(DNCDetRequest dNCDetRequest);
+
+	boolean createContactone(DncContactDto contactDetDto); 
+	
+	 Integer getCampBasedDNCSize(String dncID);
+	 List<Object[]> getCampaignBasedDNClist(String dncID);
 	 
-	 
-	 boolean insertActiveContDetails(String calluid,String status,String productid,String connectedlinenum) throws Exception;
-	 
-	 Integer getActiveContDetails(String campaignID) throws Exception;
+	 Map<String, List<SurveyContactDetDto>> getSurveyContactDet();
 
-	int getCountToCall(String actionId);
+	int getCountToCall(String productID);
 
+	boolean updateActiveContDetails(String calluid,String status,String productid,String connectedlinenum,String errorcode,String campaignName) throws Exception;
 
-	void getMobileDialed(String contactId, String productId, String customerMobile, String status);
+	boolean insertActiveContDetails(String calluid,String status,String productid,String connectedlinenum,String campaignName) throws Exception;
 
-    TenantDetResponse createTenant(TenantDetRequest tenantDetRequest);
+	Integer getActiveContDetails(String campaignID) throws Exception;
 
-	List<Object[]> getTenantDet();
-
-	boolean updateTenantDet(TenantDetRequest tenantDetRequest);
 }

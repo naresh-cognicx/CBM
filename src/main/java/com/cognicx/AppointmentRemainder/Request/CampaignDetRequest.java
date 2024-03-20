@@ -21,8 +21,46 @@ public class CampaignDetRequest {
 	private String fileName;
 	private String callBefore;
 	private boolean schedulerEnabled;
+	private String dncId;
+	private String DailingMode;
+	private String Queue;
+	private String dispositionID;
+
+	private String userGroup;
 
 	private List<CampaignWeekDetRequest> weekDaysTime;
+
+	public String getDailingMode() {
+		return DailingMode;
+	}
+
+	public String getUserGroup() {
+		return userGroup;
+	}
+
+	public void setUserGroup(String userGroup) {
+		this.userGroup = userGroup;
+	}
+
+	public void setDailingMode(String dailingMode) {
+		DailingMode = dailingMode;
+	}
+
+	public String getQueue() {
+		return Queue;
+	}
+
+	public void setQueue(String queue) {
+		Queue = queue;
+	}
+
+	public String getDispositionID() {
+		return dispositionID;
+	}
+
+	public void setDispositionID(String dispositionID) {
+		this.dispositionID = dispositionID;
+	}
 
 	public String getCampaignName() {
 		return campaignName;
@@ -168,6 +206,14 @@ public class CampaignDetRequest {
 
 	public void setSchedulerEnabled(boolean schedulerEnabled) {
 		this.schedulerEnabled = schedulerEnabled;
+	}
+
+	public String getDncId() {
+		return dncId;
+	}
+
+	public void setDncId(String dncId) {
+		this.dncId = dncId;
 	}
 
 	@Override

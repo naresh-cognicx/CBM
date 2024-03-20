@@ -8,7 +8,8 @@ public class calldialEvent extends UserEvent{
 	private String productid;
 	private String phone;
 	private String appdata;
-	
+	private String campaingnname;
+
 	public String getProductid() {
 		System.out.println("Getting Product ID "+productid);
 		return productid;
@@ -56,11 +57,22 @@ public class calldialEvent extends UserEvent{
 
 
 
+	public String getCampaingnname() {
+		return campaingnname;
+	}
+
+	public void setCampaingnname(String campaingnname) {
+		this.campaingnname = campaingnname;
+	}
+
+
+
+
 	/**
-	 * 
+	 *
 	 */
 	private static final long serialVersionUID = 1L;
-	
-	
+
+
 
 }

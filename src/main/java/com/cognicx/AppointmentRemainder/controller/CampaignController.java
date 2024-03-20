@@ -1,43 +1,27 @@
 package com.cognicx.AppointmentRemainder.controller;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
-import java.io.Writer;
-import java.math.BigInteger;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.text.DateFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.TimeUnit;
-
+import com.cognicx.AppointmentRemainder.Dto.ContactDetDto;
+import com.cognicx.AppointmentRemainder.Dto.DncContactDto;
+import com.cognicx.AppointmentRemainder.Dto.SurveyContactDetDto;
+import com.cognicx.AppointmentRemainder.Dto.UploadHistoryDto;
 import com.cognicx.AppointmentRemainder.Request.*;
+import com.cognicx.AppointmentRemainder.response.GenericResponse;
+import com.cognicx.AppointmentRemainder.response.GenericResponseReport;
+import com.cognicx.AppointmentRemainder.service.CampaignService;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jcraft.jsch.*;
+import com.mashape.unirest.http.HttpResponse;
+import com.mashape.unirest.http.Unirest;
+import com.mashape.unirest.http.exceptions.UnirestException;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
-//import org.apache.http.HttpResponse;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.protocol.HTTP;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,32 +30,19 @@ import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.cognicx.AppointmentRemainder.Dto.ContactDetDto;
-import com.cognicx.AppointmentRemainder.Dto.UploadHistoryDto;
-import com.cognicx.AppointmentRemainder.response.GenericResponse;
-import com.cognicx.AppointmentRemainder.response.GenericResponseReport;
-import com.cognicx.AppointmentRemainder.service.CampaignService;
-import com.cognicx.AppointmentRemainder.service.impl.CampaignServiceImpl;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.jcraft.jsch.Channel;
-import com.jcraft.jsch.ChannelSftp;
-import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.Session;
-import com.jcraft.jsch.SftpException;
-import com.mashape.unirest.http.HttpResponse;
-import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.http.exceptions.UnirestException;
+import java.io.*;
+import java.math.BigInteger;
+import java.net.URLEncoder;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @RestController
 @CrossOrigin
@@ -87,30 +58,27 @@ public class CampaignController {
     @Value("${app.fileDirectory}")
     private String fileDirectory;
 
-    /*
-     * @Value("${call.apiurl}") private String callApi;
-     */
-
     @Value("${call.apiurl.autocalls}")
     private String callApiAutoCall;
 
-    @Value("${failure.filediectory}")
-    private String failureDirectory;
+    @Value("${call.apiurl.SurveyApi}")
+    private String SurveyApi;
 
-    @Value("${predue.dialplan}")
-    private String preDueDialPlan;
 
-    @Value("${postdue.dialplan}")
-    private String postDueDialPlan;
+    @Value("${call.apiurl.token.url}")
+    private String tokenurl;
 
-    @Value("${autodialcamp}")
-    private String autoDialCamp;
+    @Value("${call.apiurl.token.username}")
+    private String userName;
 
-    //added on 21022024
-    @Value("${productID}")
-    private String productID;
+    @Value("${call.apiurl.token.password}")
+    private String password;
 
     private static List<String> listOfActionIdStore = new CopyOnWriteArrayList<>();
+
+
+    @Value("${failure.filediectory}")
+    private String failureDirectory;
 
     private static Logger logger = LoggerFactory.getLogger(CampaignController.class);
 
@@ -215,10 +183,10 @@ public class CampaignController {
                     client.connect(campaignDetRequest.getFtpLocation(), 21);
                     boolean isSuccess = client.login(campaignDetRequest.getFtpUsername(),
                             campaignDetRequest.getFtpPassword());
-//					List<ContactDetDto> contactDetList = csvToData(null);
-//					for (ContactDetDto contactDetDto : contactDetList) {
-//						campaignService.createContact(contactDetDto);
-//					}
+                    //					List<ContactDetDto> contactDetList = csvToData(null);
+                    //					for (ContactDetDto contactDetDto : contactDetList) {
+                    //						campaignService.createContact(contactDetDto);
+                    //					}
                     if (isSuccess) {
                         List<String> fileName = new ArrayList<>();
                         // client.changeWorkingDirectory("/eappzz.com/reminder1");
@@ -239,9 +207,9 @@ public class CampaignController {
                             boolean isRenamed = client.rename(campaignDetRequest.getFileName(), "test.csv");
                             logger.info("Renamed Status:: " + isRenamed);
                             client.disconnect();
-//							for (ContactDetDto contactDetDto : contactDetList) {
-//								campaignService.createContact(contactDetDto);
-//							}
+                            //							for (ContactDetDto contactDetDto : contactDetList) {
+                            //								campaignService.createContact(contactDetDto);
+                            //							}
                         } else {
                             logger.info("In ftp Fileupload:: expected file '" + campaignDetRequest.getFileName()
                                     + "' is not there");
@@ -251,12 +219,12 @@ public class CampaignController {
                     }
                 }
             }
-//			client.connect("eappzz.com", 21);
-//			boolean isSuccess = client.login("test1@eappzz.com", "2u42*(1t5#to");
-//			client.changeWorkingDirectory("/eappzz.com/reminder1");
-//
-//			String filename = "campaign.csv";
-//			InputStream in = client.retrieveFileStream(filename);
+            //			client.connect("eappzz.com", 21);
+            //			boolean isSuccess = client.login("test1@eappzz.com", "2u42*(1t5#to");
+            //			client.changeWorkingDirectory("/eappzz.com/reminder1");
+            //
+            //			String filename = "campaign.csv";
+            //			InputStream in = client.retrieveFileStream(filename);
 
             // List<ContactDetDto> contactDetList = csvToData(in);
             // client.disconnect();
@@ -305,11 +273,11 @@ public class CampaignController {
                 contactDet.setCampaignId(campaignId);
                 contactDet.setCampaignName(campaignName);
                 //Code commented by SK Praveen Kumar for Auto call changes om 30/08/2023
-//				contactDet.setDoctorName(csvRecord.get("doctor name"));
-//				contactDet.setPatientName(csvRecord.get("patient name"));
-//				contactDet.setContactNo(csvRecord.get("contact number"));
-//				contactDet.setAppointmentDate(csvRecord.get("appointment date"));
-//				contactDet.setLanguage(csvRecord.get("language"));
+                //				contactDet.setDoctorName(csvRecord.get("doctor name"));
+                //				contactDet.setPatientName(csvRecord.get("patient name"));
+                //				contactDet.setContactNo(csvRecord.get("contact number"));
+                //				contactDet.setAppointmentDate(csvRecord.get("appointment date"));
+                //				contactDet.setLanguage(csvRecord.get("language"));
 
                 contactDet.setLastFourDigits(csvRecord.get("Last 4 Digits"));
                 contactDet.setCustomerMobileNumber(csvRecord.get("CUST_MOBILE_NUMBER"));
@@ -432,12 +400,307 @@ public class CampaignController {
         return isValid;
     }
 
+
+//	@Scheduled(cron = "0 0/30 * * * *")
+//	@PostMapping("/httpurl")
+//	public void executeFailure() {
+//
+//		try {
+//			int concurrent;
+//			long timeDifference;
+//			long timeDifference1;
+//			long retryDifference;
+//			boolean isMaxAdvTime = true;
+//			Date currentDate = new Date();
+//			Date weekStartDate = null;
+//			Date weekEndDate = null;
+//			DateFormat dateTimeformat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+//			DateFormat dateformat = new SimpleDateFormat("yyyy-MM-dd");
+//			DateFormat time = new SimpleDateFormat("hh:mm a");
+//			DateFormat WeekDaytimeFormat = new SimpleDateFormat("HH:mm:ss");
+//			DateFormat weekDayFormat = new SimpleDateFormat("EEEE");
+//			String weekDay = String.valueOf(weekDayFormat.format(currentDate));
+//			logger.info("**** Scheduler Started ****");
+//			List<CampaignDetRequest> campaignDetList = campaignService.getCampaignDetList();
+//			Map<String, List<ContactDetDto>> contactDetMap = campaignService.getContactDet();
+//			logger.info("**** Campaign and Contact details fetched ****");
+//			if (campaignDetList != null && !campaignDetList.isEmpty()) {
+//				logger.info("**** Campaign details not empty ****");
+//				for (CampaignDetRequest campaignDetRequest : campaignDetList) {
+//					//currentDate = new Date();
+//
+//					logger.info("New :: Contact Details Keys :"+contactDetMap.keySet().toString());
+//					logger.info("New :: Campaign ID :"+campaignDetRequest.getCampaignId());
+//
+//					//Added on 05/02/2024
+//					CampaignStatus campaignStatus=new CampaignStatus();
+//					campaignStatus.setCampaignId(campaignDetRequest.getCampaignId());
+//					boolean campStatus=campaignService.getCampaignStatus(campaignStatus);
+//					logger.info("New :: Campaign status :"+campStatus);
+//					if (campStatus) {
+//						logger.info("Campaign status is enabled . Hence Campaaign scheduler is called");
+//						if (contactDetMap != null && contactDetMap.containsKey(campaignDetRequest.getCampaignId())) {
+//							logger.info("**** Contact details contain campaign key ****");
+//							if (campaignDetRequest.getConcurrentCall() != null
+//									&& !campaignDetRequest.getConcurrentCall().isEmpty())
+//								concurrent = Integer.parseInt(campaignDetRequest.getConcurrentCall());
+//							else
+//								concurrent = 5;
+//							String campaignDateStr = campaignDetRequest.getStartDate() + " "
+//									+ campaignDetRequest.getStartTime();
+//							Date campaignStartdate = dateTimeformat.parse(campaignDateStr);
+//							Date campaignEndDate = dateTimeformat
+//									.parse(campaignDetRequest.getEndDate() + " " + campaignDetRequest.getEndTime());
+//							for (CampaignWeekDetRequest campaignWeekDetRequest : campaignDetRequest.getWeekDaysTime()) {
+//								if (weekDay.equalsIgnoreCase(campaignWeekDetRequest.getDay())) {
+//									weekStartDate = WeekDaytimeFormat.parse(campaignWeekDetRequest.getStartTime());
+//									weekEndDate = WeekDaytimeFormat.parse(campaignWeekDetRequest.getEndTime());
+//								}
+//							}
+//							List<ContactDetDto> contactDetList = contactDetMap.get(campaignDetRequest.getCampaignId());
+//							if (contactDetList != null && !contactDetList.isEmpty()) {
+//								logger.info("**** Contact details condition  ****");
+//								int i = 1, j = 1;
+//								for (ContactDetDto contactDetDto : contactDetList) {
+//									logger.info("**** inside contact details loop  ****");
+//									logger.info("**** Contact ID : ****"+contactDetDto.getContactId());
+//									isMaxAdvTime = true;
+//
+//									// Added on 13th March
+//									String dncID=campaignDetRequest.getDncId();
+//									List<String> dncContacts=campaignService.getDNSDetList(dncID);
+//									String contactNumber=contactDetDto.getContactNo();
+//									if(!(contactNumber!=null && dncContacts!=null && dncContacts.contains(contactNumber))) {
+//										Date appdate = dateTimeformat.parse(contactDetDto.getDueDate());
+//										Date appdateCallBefore = dateformat.parse(contactDetDto.getDueDate());
+//										logger.info("CampaignId: " + campaignDetRequest.getCampaignId() + "   **** outside date condition  **** "+ "  appdate:"+ appdate + " campaignStartdate :"+ campaignStartdate+ "  campaignEndDate: "+ campaignEndDate);
+//
+//										if (appdate.after(campaignStartdate) && appdate.before(campaignEndDate)) {
+//											logger.info("CampaignId: " + campaignDetRequest.getCampaignId() + "   **** inside contact details loop  **** "+"customer mobile number:"+contactDetDto.getCustomerMobileNumber()+ "  appdate:"+ appdate + " campaignStartdate :"+ campaignStartdate+ "  campaignEndDate: "+ campaignEndDate);
+//											timeDifference = appdate.getTime() - currentDate.getTime();
+//											timeDifference1 = appdateCallBefore.getDate() - currentDate.getDate();
+//
+//
+//											LocalDate start = LocalDate.of(currentDate.getYear(), (currentDate.getMonth()+1), currentDate.getDate());
+//											LocalDate end = LocalDate.of(appdateCallBefore.getYear(), (appdateCallBefore.getMonth()+1), appdateCallBefore.getDate());
+//											long dayDifference = start.until(end, ChronoUnit.DAYS);
+//
+//											logger.info("**** currentDate "+ " Year :" +currentDate.getYear()+ " Month :" + currentDate.getMonth()+ "Date :" + currentDate.getDate());
+//											logger.info("**** DueDate "+ " Year :" +appdateCallBefore.getYear()+ " Month :" + appdateCallBefore.getMonth()+ "Date :" + appdateCallBefore.getDate());
+//
+//
+//											logger.info("**** inside contact details loop  ****timeDifference: " + timeDifference +  "  Time difference1:  " + timeDifference1 + "  dayDifference:" + dayDifference + "  currentDate: " + currentDate  +
+//													"**** inside contact details loop  ****  CampaignId:  " + campaignDetRequest.getCampaignId() + "  CallBefore:" + campaignDetRequest.getCallBefore() + "  CampaignName: " + campaignDetRequest.getCampaignName()  );
+//											logger.info("New ::  call Before ="+campaignDetRequest.getCallBefore());
+//
+//											if (dayDifference == Integer.parseInt(campaignDetRequest.getCallBefore())) {
+//												if ("0".equalsIgnoreCase(campaignDetRequest.getCallBefore())) {
+//													long minutesDifference = TimeUnit.MILLISECONDS.toMinutes(timeDifference);
+//													String[] hourMin = campaignDetRequest.getMaxAdvNotice().split(":");
+//													long minutes = (Integer.parseInt(hourMin[0]) * 60)
+//															+ Integer.parseInt(hourMin[1]);
+//													logger.info("CampaignId: " + campaignDetRequest.getCampaignId() + "   **** minutesDifference :"+  minutesDifference + " contact details loop  **** minutes:"+ minutes);
+//													if (minutesDifference < minutes) {
+//														isMaxAdvTime = false;
+//													}
+//												}
+//												logger.info("CampaignId: " + campaignDetRequest.getCampaignId() + "   **** isMaxAdvTime :"+  isMaxAdvTime + " contact details loop  **** appdate:"+ appdate + " campaignStartdate :"+ campaignStartdate+ "  campaignEndDate: "+ campaignEndDate);
+//												if (isMaxAdvTime) {
+//													currentDate = new Date(); //Code added by SK Praveen Kumar for bug fix
+//
+//													logger.info("New :: Week Start Date :"+weekStartDate);
+//													logger.info("New :: Week End Date :"+weekEndDate);
+//													logger.info("New :: Currend Date :"+currentDate);
+//													if (WeekDaytimeFormat.parse(WeekDaytimeFormat.format(currentDate))
+//															.after(weekStartDate)
+//															&& WeekDaytimeFormat.parse(WeekDaytimeFormat.format(currentDate))
+//															.before(weekEndDate)) {
+//														logger.info("CampaignId: " + campaignDetRequest.getCampaignId() + "    **** WeekDaytimeFormat weekEndDate:"+  weekEndDate + " contact details loop  **** appdate:"+ appdate + " campaignStartdate :"+ campaignStartdate+ "  campaignEndDate: "+ campaignEndDate);
+//														if (contactDetDto.getCallRetryCount() != null && (Integer
+//																.parseInt(contactDetDto.getCallRetryCount()) <= Integer
+//																.parseInt(campaignDetRequest.getRetryCount()))) {
+//															Date updateddate = dateTimeformat
+//																	.parse(contactDetDto.getUpdatedDate());
+//															retryDifference = TimeUnit.MILLISECONDS
+//																	.toMinutes(currentDate.getTime() - updateddate.getTime());
+//															if ("New".equalsIgnoreCase(contactDetDto.getCallStatus())
+//																	|| retryDifference > Integer
+//																	.parseInt(campaignDetRequest.getRetryDelay())) {
+//																logger.info(
+//																		"**** All Conditions are satisfied going to make call For the contact ID : "+contactDetDto.getContactId()+"****");
+//																Date dueDate = dateTimeformat.parse(contactDetDto.getDueDate());
+//																Long dueUnixTime = dueDate.getTime() / 1000;
+//																Runnable obj1 = () -> {
+//
+//																	logger.info(
+//																			"**** Inside Thread API Thread API request****" );
+//
+//
+//																	Unirest.setTimeouts(0, 0);
+//																	try {
+//																		ContactDetDto dummycontact = new ContactDetDto();
+//																		dummycontact.setCampaignId(contactDetDto.getCampaignId());
+//																		dummycontact.setCampaignName(contactDetDto.getCustomerMobileNumber());
+//																		dummycontact.setContactNo(Long.toString(dueUnixTime));
+//																		dummycontact.setAppointmentDate(contactDetDto.getDueDate());
+//																		dummycontact.setCallStatus(contactDetDto.getContactId());
+//																		campaignService.createDummyContact(dummycontact);
+//
+//																		logger.info("*************Dummy Contact*********");
+//																		logger.info("*************Contact ID : *********"+contactDetDto.getContactId());
+//																		logger.info("campaignId"+dummycontact.getCampaignId());
+//																		logger.info("getCustomerMobileNumber"+ dummycontact.getCampaignName());
+//																		logger.info("language"+dummycontact.getLanguage());
+//																		logger.info("UnixTime"+ dummycontact.getContactNo());
+//																		logger.info("DueDate"+ dummycontact.getAppointmentDate());
+//																		logger.info("ContactId"+ dummycontact.getCallStatus());
+//
+//
+//
+//																		String request = "{\r\n    \"outcallerid\": \"044288407\",\r\n    \"siptrunk\": \"Avaya\",\r\n  "
+//																				+ "  \"phone\": \""+contactDetDto.getCustomerMobileNumber()+"\",\r\n   "
+//																				+ "  \"productid\": \""+contactDetDto.getProductID()+"\",\r\n   "
+//																				+ " \"language\": \""+contactDetDto.getMinPayment()+"\",\r\n    "
+//																				+"\",\r\n    \"dialplan\": \"\"nas-neuro\",\r\n "
+//																				+ " \"actionid\": \""+contactDetDto.getContactId()+"\"\r\n}";
+//																		logger.info(request);
+//
+//
+//
+//																		HttpResponse<String> response = Unirest.post(callApiAutoCall)
+//																				.header("Content-Type", "application/json")
+//																				.body("{\r\n    \"outcallerid\": \"044288407\",\r\n    \"siptrunk\": \"Avaya\",\r\n  "
+//																						+ "  \"phone\": \""+contactDetDto.getCustomerMobileNumber()+"\",\r\n   "
+//																						+ "  \"productid\": \""+contactDetDto.getProductID()+"\",\r\n   "
+//																						+ " \"language\": \""+contactDetDto.getMinPayment()+"\",\r\n    "
+//																						+ "  \"unixtime\": \""+dueUnixTime+"\",\r\n    \"timezone\": \"GST\",\r\n    \"dialplan\": \"nas-neuro\",\r\n   "
+//																						+ " \"actionid\": \""+contactDetDto.getContactId()+"\"\r\n}")
+//																				.asString();
+//																		logger.info(
+//																				"**** Inside Thread API Thread API response****" );
+//																		logger.info(response.getBody());
+//
+//																	} catch (UnirestException e1) {
+//																		logger.info(
+//																				"**** Inside Exception clause API Thread API ****" );
+//																		logger.error(e1.getMessage());
+//																		// TODO Auto-generated catch block
+//																		e1.printStackTrace();
+//																	}
+//
+//
+//																	System.out.println("Request Success");
+//																	CloseableHttpClient httpclient = HttpClients
+//																			.createDefault();
+//																	HttpPost httppost = new HttpPost(callApiAutoCall);
+//																	List<NameValuePair> nvps = new ArrayList<NameValuePair>();
+//																	nvps.add(new BasicNameValuePair("outcallerid", "044288407"));
+//																	nvps.add(new BasicNameValuePair("siptrunk", "Avaya"));
+//																	nvps.add(new BasicNameValuePair("phone", contactDetDto.getCustomerMobileNumber()));
+//																	nvps.add(new BasicNameValuePair("language", contactDetDto.getLanguage()));
+//																	nvps.add(new BasicNameValuePair("productID", contactDetDto.getProductID()));
+//																	nvps.add(new BasicNameValuePair("unixtime", "1695454737"));
+//																	nvps.add(new BasicNameValuePair("timezone", "GST"));
+//																	nvps.add(new BasicNameValuePair("dialplan", "nas-neuro"));
+//																	long number = (long) Math.floor(Math.random() * 9_000_000_000L) + 1_000_000_000L;
+//																	nvps.add(new BasicNameValuePair("actionid", contactDetDto.getContactId()));
+//																	for (NameValuePair name : nvps) {
+//																		logger.info("**** Call Request Parameters executeFailureAutoCalls****");
+//																		logger.info("Name value pair :"+ name.getValue());
+//																	}
+//
+//																	try {
+//																		httppost.setEntity(
+//																				new UrlEncodedFormEntity(nvps, HTTP.UTF_8));
+//																	} catch (UnsupportedEncodingException e) {
+//																		e.printStackTrace();
+//																	}
+//																	/*
+//																	 * HttpResponse httpresponse; try { httpresponse =
+//																	 * httpclient.execute(httppost); logger.
+//																	 * info("**** Call made successfully for below details executeFailureAutoCalls****"
+//																	 * ); logger.info("custphone===== " +
+//																	 * contactDetDto.getCampaignName());
+//																	 * logger.info("docname===== " +
+//																	 * contactDetDto.getDueDate()); logger.info("docname===== "
+//																	 * + contactDetDto.getLastFourDigits());
+//																	 * logger.info("docname===== " +
+//																	 * contactDetDto.getMinPayment());
+//																	 * logger.info("docname===== " +
+//																	 * contactDetDto.getCustomerMobileNumber());
+//																	 * logger.info("docname===== " +
+//																	 * contactDetDto.getCallStatus());
+//																	 * logger.info("docname===== " +
+//																	 * contactDetDto.getTotalDue()); System.out.println(
+//																	 * "Time for " + System.currentTimeMillis() + " : " +
+//																	 * contactDetDto.getCustomerMobileNumber()); Scanner sc =
+//																	 * new Scanner( httpresponse.getEntity().getContent());
+//																	 * System.out.println(httpresponse.getEntity().getContent()
+//																	 * .toString()); while (sc.hasNext()) {
+//																	 * logger.info("***Call response***");
+//																	 * logger.info(sc.nextLine()); } } catch (IOException e) {
+//																	 * e.printStackTrace(); }
+//																	 *
+//																	 * try { httpclient.close(); } catch (IOException e) {
+//																	 * e.printStackTrace(); }
+//																	 */
+//																};
+//																//														updateCallDet(i, contactDetDto.getContactId(),
+//																//																contactDetDto.getCallRetryCount());
+//
+//																Thread t = new Thread(obj1);
+//																logger.info("New :: Thread Started :");
+//																logger.info("New :: Concurrent Value :"+concurrent);
+//																t.start();
+//																if (j > concurrent) {
+//																	logger.info("New :: Thread is going to Sleep");
+//																	Thread.sleep(25000 * concurrent);
+//																	logger.info("New :: Thread Resumed");
+//																	j = 0;
+//																}
+//																i++;
+//																j++;
+//															}else {
+//																logger.info("New :: contact details status is either not new or retry difference is greater than campaing retry difference for the contact ID : "+contactDetDto.getContactId());
+//																logger.info("New :: contact details status :"+contactDetDto.getCallStatus()+" :: Campaign Retry  :"+ campaignDetRequest.getRetryCount()+" Retry Difference :"+retryDifference);
+//															}
+//														}
+//													}
+//												}
+//											}
+//										}
+//									}else {
+//										logger.info("Contact is in DNC list, Hence not invoking campaign API");
+//									}
+//								}
+//							}
+//						}
+//					}
+//					else
+//					{
+//						logger.info("New :: Campaign Status is not true. Hence campaign API scheduler is not invoked");
+//					}
+//				}
+//			}
+//		}
+//		//		catch (MalformedURLException e) {
+//		//			e.printStackTrace();
+//		//		} catch (IOException e) {
+//		//			e.printStackTrace();
+//		//		}
+//		catch (Exception e) {
+//			logger.info("Error Occured in call Making due to : " + e.getMessage());
+//			e.printStackTrace();
+//		}
+//		// return null;
+//	}
+
     @Scheduled(cron = "0 0/2 * * * *")
     @PostMapping("/httpurl")
-    public void executeFailure() {
+    public void scheduledAPIInvoker() {
         try {
             int concurrent;
-            int val = 0;
+            int val;
             long timeDifference;
             long timeDifference1;
             long retryDifference;
@@ -453,24 +716,21 @@ public class CampaignController {
             String weekDay = String.valueOf(weekDayFormat.format(currentDate));
             logger.info("**** Scheduler Started ****");
             List<CampaignDetRequest> campaignDetList = campaignService.getCampaignDetList();
-            Map<String, List<ContactDetDto>> contactDetMap = campaignService.getContactDet();
+
+            Map<String, List<SurveyContactDetDto>> surveyContactDet = campaignService.getSurveyContDet();
             logger.info("**** Campaign and Contact details fetched ****");
             if (campaignDetList != null && !campaignDetList.isEmpty()) {
                 logger.info("**** Campaign details not empty ****");
                 for (CampaignDetRequest campaignDetRequest : campaignDetList) {
-                    //currentDate = new Date();
-
-                    logger.info("New :: Contact Details Keys :" + contactDetMap.keySet().toString());
-                    logger.info("New :: Campaign ID :" + campaignDetRequest.getCampaignId());
-
-                    //Added on 05/02/2024
-                    CampaignStatus campaignStatus = new CampaignStatus();
+                    logger.info("New :: Contact Details Keys :"+surveyContactDet.keySet().toString());
+                    logger.info("New :: Campaign ID :"+campaignDetRequest.getCampaignId());
+                    CampaignStatus campaignStatus=new CampaignStatus();
                     campaignStatus.setCampaignId(campaignDetRequest.getCampaignId());
-                    boolean campStatus = campaignService.getCampaignStatus(campaignStatus);
-                    logger.info("New :: Campaign status :" + campStatus);
+                    boolean campStatus=campaignService.getCampaignStatus(campaignStatus);
+                    logger.info("New :: Campaign status :"+campStatus);
                     if (campStatus) {
                         logger.info("Campaign status is enabled . Hence Campaaign scheduler is called");
-                        if (contactDetMap != null && contactDetMap.containsKey(campaignDetRequest.getCampaignId())) {
+                        if (surveyContactDet != null && surveyContactDet.containsKey(campaignDetRequest.getCampaignName())) {
                             logger.info("**** Contact details contain campaign key ****");
                             if (campaignDetRequest.getConcurrentCall() != null && !campaignDetRequest.getConcurrentCall().isEmpty()) {
                                 val = Integer.parseInt(campaignDetRequest.getConcurrentCall());
@@ -482,126 +742,82 @@ public class CampaignController {
                             Date campaignStartdate = dateTimeformat.parse(campaignDateStr);
                             Date campaignEndDate = dateTimeformat
                                     .parse(campaignDetRequest.getEndDate() + " " + campaignDetRequest.getEndTime());
-                            for (CampaignWeekDetRequest campaignWeekDetRequest : campaignDetRequest.getWeekDaysTime()) {
-                                if (weekDay.equalsIgnoreCase(campaignWeekDetRequest.getDay())) {
-                                    weekStartDate = WeekDaytimeFormat.parse(campaignWeekDetRequest.getStartTime());
-                                    weekEndDate = WeekDaytimeFormat.parse(campaignWeekDetRequest.getEndTime());
+                            logger.info("Campaign DET Weeks Days Time :"+campaignDetRequest.getWeekDaysTime());
+
+                            if(campaignDetRequest.getWeekDaysTime()!=null) {
+                                for (CampaignWeekDetRequest campaignWeekDetRequest : campaignDetRequest.getWeekDaysTime()) {
+                                    if (weekDay.equalsIgnoreCase(campaignWeekDetRequest.getDay())) {
+                                        weekStartDate = WeekDaytimeFormat.parse(campaignWeekDetRequest.getStartTime());
+                                        weekEndDate = WeekDaytimeFormat.parse(campaignWeekDetRequest.getEndTime());
+                                    }
                                 }
+                                logger.info("Week Start Date :"+weekStartDate);
+                                logger.info("Week End Date :"+weekEndDate);
                             }
-                            List<ContactDetDto> contactDetList = contactDetMap.get(campaignDetRequest.getCampaignId());
-                            if (contactDetList != null && !contactDetList.isEmpty()) {
+
+                            List<SurveyContactDetDto> surveyContDetList = surveyContactDet.get(campaignDetRequest.getCampaignName());
+                            if (surveyContDetList != null && !surveyContDetList.isEmpty()) {
                                 logger.info("**** Contact details condition  ****");
                                 int i = 1, j = 1;
-                                for (ContactDetDto contactDetDto : contactDetList) {
-                                    logger.info("**** inside contact details loop  ****");
-                                    logger.info("**** Contact ID : ****" + contactDetDto.getContactId());
-                                    int countToCall = campaignService.getCountToCall(productID);
-                                    int countOfDialNo = contactDetList.size();
-                                    val = Math.min(countOfDialNo, val);
-                                    logger.info("Count to dial no : " + countOfDialNo);
-                                    if (countToCall != 0) {
-                                        concurrent = Math.min(countToCall, val); //
-                                    } else {
-                                        concurrent = val;
-                                    }
+                                for (SurveyContactDetDto surveycontDetDto : surveyContDetList) {
+                                    String call_status=surveycontDetDto.getCall_status();
+                                    logger.info("Call status is :: "+call_status);
                                     isMaxAdvTime = true;
-                                    Date appdate = dateTimeformat.parse(contactDetDto.getDueDate());
-                                    Date appdateCallBefore = dateformat.parse(contactDetDto.getDueDate());
-                                    logger.info("CampaignId: " + campaignDetRequest.getCampaignId() + "   **** outside date condition  **** " + "  appdate:" + appdate + " campaignStartdate :" + campaignStartdate + "  campaignEndDate: " + campaignEndDate);
+                                    String dncID=campaignDetRequest.getDncId();
+                                    List<String> dncContacts=null;
+                                    if(dncID!=null) {
+                                        dncContacts=campaignService.getDNSDetList(dncID);
+                                    }
+                                    String contactNumber=surveycontDetDto.getPhone();
+                                    if(!(contactNumber!=null && dncContacts!=null && dncContacts.contains(contactNumber))) {
 
-                                    if (appdate.after(campaignStartdate) && appdate.before(campaignEndDate)) {
-                                        logger.info("CampaignId: " + campaignDetRequest.getCampaignId() + "   **** inside contact details loop  **** " + "customer mobile number:" + contactDetDto.getCustomerMobileNumber() + "  appdate:" + appdate + " campaignStartdate :" + campaignStartdate + "  campaignEndDate: " + campaignEndDate);
-                                        timeDifference = appdate.getTime() - currentDate.getTime();
-                                        timeDifference1 = appdateCallBefore.getDate() - currentDate.getDate();
-
-
-                                        LocalDate start = LocalDate.of(currentDate.getYear(), (currentDate.getMonth() + 1), currentDate.getDate());
-                                        LocalDate end = LocalDate.of(appdateCallBefore.getYear(), (appdateCallBefore.getMonth() + 1), appdateCallBefore.getDate());
-                                        long dayDifference = start.until(end, ChronoUnit.DAYS);
-
-                                        logger.info("**** currentDate " + " Year :" + currentDate.getYear() + " Month :" + currentDate.getMonth() + "Date :" + currentDate.getDate());
-                                        logger.info("**** DueDate " + " Year :" + appdateCallBefore.getYear() + " Month :" + appdateCallBefore.getMonth() + "Date :" + appdateCallBefore.getDate());
-
-
-                                        logger.info("**** inside contact details loop  ****timeDifference: " + timeDifference + "  Time difference1:  " + timeDifference1 + "  dayDifference:" + dayDifference + "  currentDate: " + currentDate +
-                                                "**** inside contact details loop  ****  CampaignId:  " + campaignDetRequest.getCampaignId() + "  CallBefore:" + campaignDetRequest.getCallBefore() + "  CampaignName: " + campaignDetRequest.getCampaignName());
-                                        logger.info("New ::  call Before =" + campaignDetRequest.getCallBefore());
-
-                                        if (dayDifference == Integer.parseInt(campaignDetRequest.getCallBefore())) {
-                                            if ("0".equalsIgnoreCase(campaignDetRequest.getCallBefore())) {
-                                                long minutesDifference = TimeUnit.MILLISECONDS.toMinutes(timeDifference);
-                                                String[] hourMin = campaignDetRequest.getMaxAdvNotice().split(":");
-                                                long minutes = (Integer.parseInt(hourMin[0]) * 60)
-                                                        + Integer.parseInt(hourMin[1]);
-                                                logger.info("CampaignId: " + campaignDetRequest.getCampaignId() + "   **** minutesDifference :" + minutesDifference + " contact details loop  **** minutes:" + minutes);
-                                                if (minutesDifference < minutes) {
-                                                    isMaxAdvTime = false;
-                                                    listOfActionIdStore.clear();
-                                                    logger.info("List of action id is cleared...");
-                                                }
+                                        if(call_status==null || call_status.equalsIgnoreCase("NEW")) {
+                                            String productID = surveycontDetDto.getSurvey_Lang() + "_" + surveycontDetDto.getSubSkillset();
+                                            int countToCall = campaignService.getCountToCall(productID);
+                                            int countOfDialNo = surveyContDetList.size();
+                                            val = Math.min(countOfDialNo, val);
+                                            logger.info("Count to dial no : " + countOfDialNo);
+                                            if (countToCall != 0) {
+                                                concurrent = Math.min(countToCall, val); //
+                                            } else {
+                                                concurrent = val;
                                             }
-                                            logger.info("CampaignId: " + campaignDetRequest.getCampaignId() + "   **** isMaxAdvTime :" + isMaxAdvTime + " contact details loop  **** appdate:" + appdate + " campaignStartdate :" + campaignStartdate + "  campaignEndDate: " + campaignEndDate);
+                                            listOfActionIdStore.clear();
                                             if (isMaxAdvTime) {
                                                 currentDate = new Date(); //Code added by SK Praveen Kumar for bug fix
+                                                logger.info("New :: Week Start Date :"+weekStartDate);
+                                                logger.info("New :: Week End Date :"+weekEndDate);
+                                                logger.info("New :: Currend Date :"+currentDate);
+                                                if (weekStartDate!=null && (WeekDaytimeFormat.parse(WeekDaytimeFormat.format(currentDate))
+                                                        .after(weekStartDate))
+                                                        && weekEndDate!=null && (WeekDaytimeFormat.parse(WeekDaytimeFormat.format(currentDate))
+                                                        .before(weekEndDate))) {
+                                                    logger.info(
+                                                            "**** All Conditions are satisfied going to make call For the Action ID : "+surveycontDetDto.getActionId()+"****");
 
-                                                logger.info("New :: Week Start Date :" + weekStartDate);
-                                                logger.info("New :: Week End Date :" + weekEndDate);
-                                                logger.info("New :: Currend Date :" + currentDate);
-                                                if (WeekDaytimeFormat.parse(WeekDaytimeFormat.format(currentDate))
-                                                        .after(weekStartDate)
-                                                        && WeekDaytimeFormat.parse(WeekDaytimeFormat.format(currentDate))
-                                                        .before(weekEndDate)) {
-                                                    logger.info("CampaignId: " + campaignDetRequest.getCampaignId() + "    **** WeekDaytimeFormat weekEndDate:" + weekEndDate + " contact details loop  **** appdate:" + appdate + " campaignStartdate :" + campaignStartdate + "  campaignEndDate: " + campaignEndDate);
-                                                    if (contactDetDto.getCallRetryCount() != null && (Integer
-                                                            .parseInt(contactDetDto.getCallRetryCount()) <= Integer
-                                                            .parseInt(campaignDetRequest.getRetryCount()))) {
-                                                        Date updateddate = dateTimeformat
-                                                                .parse(contactDetDto.getUpdatedDate());
-                                                        retryDifference = TimeUnit.MILLISECONDS
-                                                                .toMinutes(currentDate.getTime() - updateddate.getTime());
-                                                        if ("New".equalsIgnoreCase(contactDetDto.getCallStatus())
-                                                                || retryDifference > Integer
-                                                                .parseInt(campaignDetRequest.getRetryDelay())) {
-                                                            logger.info(
-                                                                    "**** All Conditions are satisfied going to make call For the contact ID : " + contactDetDto.getContactId() + "****");
-                                                            Date dueDate = dateTimeformat.parse(contactDetDto.getDueDate());
-                                                            Long dueUnixTime = dueDate.getTime() / 1000;
+                                                    Thread t = new Thread(() -> processCallApi(surveycontDetDto));
+                                                    logger.info("New :: Thread Started :");
+                                                    t.start();
 
-//                                                            logger.info("**** Inside Thread API Thread API request****");
-                                                            Thread t = new Thread(() -> processCallApi(contactDetDto, campaignDetRequest, dueUnixTime));
-                                                            t.start();
-
-//														updateCallDet(i, contactDetDto.getContactId(),
-//																contactDetDto.getCallRetryCount());
-
-//                                                            for (int count=0;count<concurrent;count++){
-//                                                            Thread t = new Thread(obj1);
-//                                                            logger.info("New :: Thread Started :");
-//                                                            t.start();
-//                                                            if (contactDetDto.getCustomerMobileNumber().isEmpty() || contactDetDto.getCustomerMobileNumber() != null) {
-//                                                                t.sleep(1000);
-//                                                            } else {
-//                                                                t.join();
-//                                                            }
-//                                                        }
-
-//                                                            logger.info("New :: Concurrent Value :" + concurrent);
-//                                                            if (j > concurrent) {
-//                                                                logger.info("New :: Thread is going to Sleep");
-//                                                                Thread.sleep(10000 * concurrent);
-//                                                                logger.info("New :: Thread Resumed");
-//                                                                j = 0;
-//                                                            }
-//                                                            i++;
-//                                                            j++;
-                                                        } else {
-                                                            logger.info("New :: contact details status is either not new or retry difference is greater than campaing retry difference for the contact ID : " + contactDetDto.getContactId());
-                                                            logger.info("New :: contact details status :" + contactDetDto.getCallStatus() + " :: Campaign Retry  :" + campaignDetRequest.getRetryCount() + " Retry Difference :" + retryDifference);
-                                                        }
+                                                    if (listOfActionIdStore.size() == concurrent) {
+                                                        logger.info("Concurrent count reached");
+                                                        t.sleep(10000);
                                                     }
+                                                    //												if (j > concurrent) {
+                                                    //													logger.info("New :: Thread is going to Sleep");
+                                                    //													Thread.sleep(25000 * concurrent);
+                                                    //													logger.info("New :: Thread Resumed");
+                                                    //													j = 0;
+                                                    //												}
+                                                    //												i++;
+                                                    //												j++;
                                                 }
                                             }
+                                        }else {
+                                            logger.info("Contact status is Neither NULL nor NEW, Hence not invoking Campaign API");
                                         }
+                                    } else {
+                                        logger.info("Contact is in DNC list, Hence not invoking campaign API");
                                     }
                                 }
                             }
@@ -611,290 +827,62 @@ public class CampaignController {
                     }
                 }
             }
-        }
-//		catch (MalformedURLException e) {
-//			e.printStackTrace();
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		}
-        catch (Exception e) {
-            logger.info("Error Occured in call Making due to : " + e.getMessage());
+        } catch (Exception e) {
+            StringWriter str=new StringWriter();
+            e.printStackTrace(new PrintWriter(str));
+
+            logger.info("Error Occured in call Making due to : " + str.toString());
             e.printStackTrace();
         }
-        // return null;
     }
 
-    private void processCallApi(ContactDetDto contactDetDto, CampaignDetRequest campaignDetRequest, Long dueUnixTime) {
-        logger.info("**** Inside Thread API Thread API request****");
-        String dialplan = null;
-        logger.info("New :: AutoDial campaign ID set to property is :" + autoDialCamp);
-        if (autoDialCamp != null && autoDialCamp.equalsIgnoreCase(campaignDetRequest.getCampaignId())) {
-            dialplan = postDueDialPlan;
-        } else {
-            dialplan = preDueDialPlan;
-        }
+    private void processCallApi(SurveyContactDetDto surveycontDetDto) {
+        logger.info(
+                "**** Inside Thread API Thread API request****" );
+
+
         Unirest.setTimeouts(0, 0);
         try {
-            ContactDetDto dummycontact = new ContactDetDto();
-            dummycontact.setCampaignId(contactDetDto.getCampaignId());
-            dummycontact.setCampaignName(contactDetDto.getCampaignName());
-            dummycontact.setDueDate(Long.toString(dueUnixTime));
-            dummycontact.setAppointmentDate(contactDetDto.getDueDate());
-            dummycontact.setCallStatus(contactDetDto.getContactId());
-            campaignService.createDummyContact(dummycontact);
-
-            logger.info("*************Dummy Contact*********");
-            logger.info("*************Contact ID : *********" + contactDetDto.getContactId());
-            logger.info("campaignId" + dummycontact.getCampaignId());
-            logger.info("getCustomerMobileNumber" + dummycontact.getCampaignName());
-            logger.info("language" + dummycontact.getLanguage());
-            logger.info("UnixTime" + dummycontact.getContactNo());
-            logger.info("DueDate" + dummycontact.getAppointmentDate());
-            logger.info("ContactId" + dummycontact.getCallStatus());
-
-            String request = "{\r\n    \"outcallerid\": \"044288407\",\r\n    \"siptrunk\": \"Avaya\",\r\n  "
-                    + "  \"phone\": \"" + contactDetDto.getCustomerMobileNumber() + "\",\r\n   "
-                    + "\"language\": \"" + contactDetDto.getLanguage() + "\",\r\n "
-                    + "  \"productid\": \"" + productID + "\",\r\n   "
-                    + " \"amount\": \"" + contactDetDto.getMinPayment() + "\",\r\n    "
-                    + " \"last4digit\": \"" + contactDetDto.getLastFourDigits() + "\",\r\n "
-                    + "   \"duedate\": \"" + contactDetDto.getDueDate() + "\",\r\n   "
-                    + "  \"unixtime\": \"" + dueUnixTime + "\",\r\n    \"timezone\": \"GST\",\r\n    \"dialplan\": \"" + dialplan + "\",\r\n   "
-                    + " \"actionid\": \"" + contactDetDto.getContactId() + "\"\r\n}";
-
-            logger.info(request);
-
+            String request = getString(surveycontDetDto);
+            logger.info("Request :"+request);
             HttpResponse<String> response = Unirest.post(callApiAutoCall)
                     .header("Content-Type", "application/json")
-                    .body("{\r\n    \"outcallerid\": \"044288407\",\r\n    \"siptrunk\": \"Avaya\",\r\n  "
-                            + "  \"phone\": \"" + contactDetDto.getCustomerMobileNumber() + "\",\r\n   "
-                            + "\"language\":\"" + contactDetDto.getLanguage() + "\",\r\n "
-                            + "  \"productid\": \"" + productID + "\",\r\n   "
-                            + " \"amount\": \"" + contactDetDto.getMinPayment() + "\",\r\n    "
-                            + " \"last4digit\": \"" + contactDetDto.getLastFourDigits() + "\",\r\n "
-                            + "   \"duedate\": \"" + contactDetDto.getDueDate() + "\",\r\n   "
-                            + "  \"unixtime\": \"" + dueUnixTime + "\",\r\n    \"timezone\": \"GST\",\r\n    \"dialplan\": \"" + dialplan + "\",\r\n   "
-                            + " \"actionid\": \"" + contactDetDto.getContactId() + "\"\r\n}")
+                    .body(request)
                     .asString();
-            logger.info(
-                    "**** Inside Thread API Thread API response****");
-/*              Example response from the api
-                {
-                    "ActionID": "169746",
-                        "Message": "Originate successfully queued",
-                        "Response": "Success"
-                }
-                */
-
             String responses = response.toString();
-            String contactId = contactDetDto.getContactId();
-            if (responses.contains(contactId) && responses.contains("Success")) {
-                listOfActionIdStore.add(contactId);
+            String actionId = surveycontDetDto.getActionId();
+            if (responses.contains(actionId) && responses.contains("Success")) {
+                listOfActionIdStore.add(actionId);
             } else {
-                System.out.println("Action not found or unsuccessful.");
+                logger.error("Action id not found or call unsuccessful.");
             }
-            String customerMobile = contactDetDto.getCustomerMobileNumber();
-            if (listOfActionIdStore.contains(contactId)) {
+
+            String customerMobile = surveycontDetDto.getPhone();
+            if (listOfActionIdStore.contains(actionId)) {
                 logger.info(response.getBody());
-                logger.info("Response for this : " + contactId + " " + customerMobile);
-//                    campaignService.getMobileDialed(contactId,productID,customerMobile,"Success");
-                System.out.println("Call Done");
+                logger.info("Response for this : " + actionId + " " + customerMobile +" : call done..");
             } else {
                 logger.info(response.getBody());
-                logger.info("Response for this :  " + contactId + " " + customerMobile);
-//                    campaignService.getMobileDialed(contactId,productID,customerMobile,"Error");
-                System.out.println("Call error");
+                logger.info("Response for this :  " + actionId + " " + customerMobile+" : call error..");
             }
-//                                                                    if (responses.contains("Success")){
-//                                                                       campaignService.markasmobileand
-//                                                                    }
+            logger.info("**** Inside Thread API Thread API response****" );
+            logger.info("OutBound API Response :"+response.getBody());
         } catch (UnirestException e1) {
-            logger.info(
-                    "**** Inside Exception clause API Thread API ****");
+            logger.info("**** Inside Exception clause API Thread API ****" );
             logger.error(e1.getMessage());
-            // TODO Auto-generated catch block
             e1.printStackTrace();
         }
-        logger.info("Product Id : " + productID);
-
-        System.out.println("Request Success");
-        CloseableHttpClient httpclient = HttpClients
-                .createDefault();
-        HttpPost httppost = new HttpPost(callApiAutoCall);
-        List<NameValuePair> nvps = new ArrayList<NameValuePair>();
-        nvps.add(new BasicNameValuePair("outcallerid", "044288407"));
-        nvps.add(new BasicNameValuePair("siptrunk", "Avaya"));
-        nvps.add(new BasicNameValuePair("phone", contactDetDto.getCustomerMobileNumber()));
-        nvps.add(new BasicNameValuePair("amount", contactDetDto.getMinPayment()));
-        nvps.add(new BasicNameValuePair("last4digit", contactDetDto.getLastFourDigits()));
-        nvps.add(new BasicNameValuePair("language", contactDetDto.getLanguage()));
-        nvps.add(new BasicNameValuePair("productID", productID));
-        nvps.add(new BasicNameValuePair("unixtime", "1695454737"));
-        nvps.add(new BasicNameValuePair("timezone", "GST"));
-        nvps.add(new BasicNameValuePair("dialplan", dialplan));
-        long number = (long) Math.floor(Math.random() * 9_000_000_000L) + 1_000_000_000L;
-        nvps.add(new BasicNameValuePair("actionid", contactDetDto.getContactId()));
-        for (NameValuePair name : nvps) {
-            logger.info("**** Call Request Parameters executeFailureAutoCalls****");
-            logger.info("Name value pair :" + name.getValue());
-        }
-
-
-        try {
-            httppost.setEntity(
-                    new UrlEncodedFormEntity(nvps, HTTP.UTF_8));
-        } catch (
-                UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
-        /*
-         * HttpResponse httpresponse; try { httpresponse =
-         * httpclient.execute(httppost); logger.
-         * info("**** Call made successfully for below details executeFailureAutoCalls****"
-         * ); logger.info("custphone===== " +
-         * contactDetDto.getCampaignName());
-         * logger.info("docname===== " +
-         * contactDetDto.getDueDate()); logger.info("docname===== "
-         * + contactDetDto.getLastFourDigits());
-         * logger.info("docname===== " +
-         * contactDetDto.getMinPayment());
-         * logger.info("docname===== " +
-         * contactDetDto.getCustomerMobileNumber());
-         * logger.info("docname===== " +
-         * contactDetDto.getCallStatus());
-         * logger.info("docname===== " +
-         * contactDetDto.getTotalDue()); System.out.println(
-         * "Time for " + System.currentTimeMillis() + " : " +
-         * contactDetDto.getCustomerMobileNumber()); Scanner sc =
-         * new Scanner( httpresponse.getEntity().getContent());
-         * System.out.println(httpresponse.getEntity().getContent()
-         * .toString()); while (sc.hasNext()) {
-         * logger.info("***Call response***");
-         * logger.info(sc.nextLine()); } } catch (IOException e) {
-         * e.printStackTrace(); }
-         *
-         * try { httpclient.close(); } catch (IOException e) {
-         * e.printStackTrace(); }
-         */
     }
+    private static String getString(SurveyContactDetDto surveycontDetDto) {
 
-    private void process(ContactDetDto contactDetDto, CampaignDetRequest campaignDetRequest, Long dueUnixTime, int concurrent) {
-        try {
-            Thread[] threads = new Thread[concurrent];
-            for (int count = 0; count < concurrent; count++) {
-                threads[count] = new Thread(() -> {
-                    try {
-                        logger.info("**** Inside Thread API Thread API request****");
-                        Runnable obj1 = () -> {
-                            logger.info(
-                                    "**** Inside Thread API Thread API request****");
-                            String dialplan = null;
-                            logger.info("New :: AutoDial campaign ID set to property is :" + autoDialCamp);
-                            if (autoDialCamp != null && autoDialCamp.equalsIgnoreCase(campaignDetRequest.getCampaignId())) {
-                                dialplan = postDueDialPlan;
-                            } else {
-                                dialplan = preDueDialPlan;
-                            }
-                            Unirest.setTimeouts(0, 0);
-                            try {
-                                ContactDetDto dummycontact = new ContactDetDto();
-                                dummycontact.setCampaignId(contactDetDto.getCampaignId());
-                                dummycontact.setCampaignName(contactDetDto.getCampaignName());
-                                dummycontact.setDueDate(Long.toString(dueUnixTime));
-                                dummycontact.setAppointmentDate(contactDetDto.getDueDate());
-                                dummycontact.setCallStatus(contactDetDto.getContactId());
-                                campaignService.createDummyContact(dummycontact);
+        String productID= surveycontDetDto.getSurvey_Lang()+"_"+ surveycontDetDto.getSubSkillset();
 
-                                logger.info("*************Dummy Contact*********");
-                                logger.info("*************Contact ID : *********" + contactDetDto.getContactId());
-                                logger.info("campaignId" + dummycontact.getCampaignId());
-                                logger.info("getCustomerMobileNumber" + dummycontact.getCampaignName());
-                                logger.info("language" + dummycontact.getLanguage());
-                                logger.info("UnixTime" + dummycontact.getContactNo());
-                                logger.info("DueDate" + dummycontact.getAppointmentDate());
-
-                                String request ="{\r\n    \"outcallerid\": \"044288407\",\r\n    \"siptrunk\": \"Avaya\",\r\n  "
-                                        + "  \"phone\": \"" + contactDetDto.getCustomerMobileNumber() + "\",\r\n   "
-                                        + "\"language\":\"" + contactDetDto.getLanguage() + "\",\r\n "
-                                        + "  \"productid\": \"" + productID + "\",\r\n   "
-                                        + " \"amount\": \"" + contactDetDto.getMinPayment() + "\",\r\n    "
-                                        + " \"last4digit\": \"" + contactDetDto.getLastFourDigits() + "\",\r\n "
-                                        + "   \"duedate\": \"" + contactDetDto.getDueDate() + "\",\r\n   "
-                                        + "  \"unixtime\": \"" + dueUnixTime + "\",\r\n    \"timezone\": \"GST\",\r\n    \"dialplan\": \"" + dialplan + "\",\r\n   "
-                                        + " \"actionid\": \"" + contactDetDto.getContactId() + "\"\r\n}";
-
-                                logger.info(request);
-                                logger.info("Product Id : " + productID);
-                                HttpResponse<String> response = Unirest.post(callApiAutoCall)
-                                        .header("Content-Type", "application/json")
-                                        .body("{\r\n    \"outcallerid\": \"044288407\",\r\n    \"siptrunk\": \"Avaya\",\r\n  "
-                                                + "  \"phone\": \"" + contactDetDto.getCustomerMobileNumber() + "\",\r\n   "
-                                                + "\"language\":\"" + contactDetDto.getLanguage() + "\",\r\n "
-                                                + "  \"productid\": \"" + productID + "\",\r\n   "
-                                                + " \"amount\": \"" + contactDetDto.getMinPayment() + "\",\r\n    "
-                                                + " \"last4digit\": \"" + contactDetDto.getLastFourDigits() + "\",\r\n "
-                                                + "   \"duedate\": \"" + contactDetDto.getDueDate() + "\",\r\n   "
-                                                + "  \"unixtime\": \"" + dueUnixTime + "\",\r\n    \"timezone\": \"GST\",\r\n    \"dialplan\": \"" + dialplan + "\",\r\n   "
-                                                + " \"actionid\": \"" + contactDetDto.getContactId() + "\"\r\n}")
-                                        .asString();
-                                logger.info(
-                                        "**** Inside Thread API Thread API response****");
-                                logger.info(response.getBody());
-                            } catch (UnirestException e1) {
-                                logger.info(
-                                        "**** Inside Exception clause API Thread API ****");
-                                logger.error(e1.getMessage());
-                                // TODO Auto-generated catch block
-                                e1.printStackTrace();
-                            }
-                            CloseableHttpClient httpclient = HttpClients
-                                    .createDefault();
-                            HttpPost httppost = new HttpPost(callApiAutoCall);
-                            List<NameValuePair> nvps = new ArrayList<NameValuePair>();
-                            nvps.add(new BasicNameValuePair("outcallerid", "044288407"));
-                            nvps.add(new BasicNameValuePair("siptrunk", "Avaya"));
-                            nvps.add(new BasicNameValuePair("phone", contactDetDto.getCustomerMobileNumber()));
-                            nvps.add(new BasicNameValuePair("amount", contactDetDto.getMinPayment()));
-                            nvps.add(new BasicNameValuePair("last4digit", contactDetDto.getLastFourDigits()));
-                            nvps.add(new BasicNameValuePair("language", contactDetDto.getLanguage()));
-                            nvps.add(new BasicNameValuePair("productID", productID));
-                            nvps.add(new BasicNameValuePair("unixtime", "1695454737"));
-                            nvps.add(new BasicNameValuePair("timezone", "GST"));
-                            nvps.add(new BasicNameValuePair("dialplan", dialplan));
-                            long number = (long) Math.floor(Math.random() * 9_000_000_000L) + 1_000_000_000L;
-                            nvps.add(new BasicNameValuePair("actionid", contactDetDto.getContactId()));
-                            for (NameValuePair name : nvps) {
-                                logger.info("**** Call Request Parameters executeFailureAutoCalls****");
-                                logger.info("Name value pair :" + name.getValue());
-                            }
-
-                            try {
-                                httppost.setEntity(
-                                        new UrlEncodedFormEntity(nvps, HTTP.UTF_8));
-                            } catch (
-                                    UnsupportedEncodingException e) {
-                                logger.error("Error : " + e.getMessage());
-                                e.printStackTrace();
-                            }
-                        };
-                        synchronized (obj1) {
-                            obj1.run();
-                        }
-                    } catch (Exception e) {
-                        logger.warn("Exception in thread: " + e.getMessage());
-                    }
-                });
-                logger.info("New :: Thread Started :");
-                threads[count].start();
-            }
-            for (Thread thread : threads) {
-                logger.info("Call completed count: " + thread);
-                thread.join();
-            }
-        } catch (InterruptedException e) {
-            logger.warn("Thread interrupted: " + e.getMessage());
-            Thread.currentThread().interrupt(); // Restore interrupted status
-        }
+        return "{\r\n    \"outcallerid\": \"044288407\",\r\n    \"siptrunk\": \"Avaya\",\r\n  "
+                + "  \"phone\": \""+ surveycontDetDto.getPhone()+"\",\r\n   "
+                + "  \"productid\": \""+productID+"\",\r\n   "
+                + " \"language\": \""+ surveycontDetDto.getSurvey_Lang()
+                +"\",\r\n    \"dialplan\": \"nas-neuro\",\r\n "
+                + " \"actionid\": \""+ surveycontDetDto.getActionId()+"\"\r\n}";
     }
 
     @PostMapping("/createCampaign")
@@ -904,10 +892,30 @@ public class CampaignController {
     }
 
     @GetMapping("/getCampaignDetail")
-    public ResponseEntity<GenericResponse> getCampaignDetail()
+    public ResponseEntity<GenericResponse> getCampaignDetail(@RequestParam String userGroup)
             throws ParseException, JsonParseException, JsonMappingException, IOException {
-        logger.info("Invoking Get Campaign Detail");
-        return campaignService.getCampaignDetail();
+        logger.info("Invoking Get Campaign Detail for the User Group ID :" + userGroup);
+        return campaignService.getCampaignDetail(userGroup);
+    }
+
+    @GetMapping("/getCampaignDetailAll")
+    public ResponseEntity<GenericResponse> getCampaignDetailAll()
+            throws ParseException, JsonParseException, JsonMappingException, IOException {
+        GenericResponse genericResponse = new GenericResponse();
+        List<CampaignDetRequest> campaignDetList = null;
+        try {
+            campaignDetList = campaignService.getCampaignDetList();
+            genericResponse.setStatus(200);
+            genericResponse.setValue(campaignDetList);
+            genericResponse.setMessage("Success");
+        } catch (Exception e) {
+            logger.error("Error in CampaignServiceImpl::createCampaign " + e);
+            genericResponse.setStatus(400);
+            genericResponse.setValue("Failure");
+            genericResponse.setMessage("No data Found");
+        }
+
+        return new ResponseEntity<GenericResponse>(new GenericResponse(genericResponse), HttpStatus.OK);
     }
 
     @PostMapping("/updateCampaign")
@@ -917,6 +925,43 @@ public class CampaignController {
         return campaignService.updateCampaign(campaignDetRequest);
     }
 
+//    @PostMapping("/updateCallDetail")
+//    public ResponseEntity<GenericResponse> updateCallDetail(@RequestBody UpdateAutoCallRequest updateAutoCallRequest)
+//            throws ParseException, JsonParseException, JsonMappingException, IOException {
+//        logger.info("**********UPDATE CALL DETAILS INPUT**********");
+//        logger.info("getActionid: " + updateAutoCallRequest.getActionid());
+//        logger.info("getPhone: " + updateAutoCallRequest.getPhone());
+//        logger.info("getCallstart: " + updateAutoCallRequest.getCallstart());
+//        logger.info("getCallanswer: " + updateAutoCallRequest.getCallanswer());
+//        logger.info("getCallend: " + updateAutoCallRequest.getCallend());
+//        logger.info("getCalltalktime: " + updateAutoCallRequest.getCalltalktime());
+//        logger.info("getCallduration: " + updateAutoCallRequest.getCallduration());
+//        logger.info("getDisposition: " + updateAutoCallRequest.getDisposition());
+//        logger.info("getDialstatus: " + updateAutoCallRequest.getDialstatus());
+//        logger.info("getHangupcode: " + updateAutoCallRequest.getHangupcode());
+//        logger.info("getHangupreason: " + updateAutoCallRequest.getHangupreason());
+//        logger.info("getHanguptext: " + updateAutoCallRequest.getHanguptext());
+//
+//
+//        UpdateCallDetRequest updateCallDetRequest = new UpdateCallDetRequest();
+//        updateCallDetRequest.setCallDuration(updateAutoCallRequest.getCallduration());
+//        updateCallDetRequest.setContactId(updateAutoCallRequest.getActionid());
+//        updateCallDetRequest.setCallerResponse("0");
+//        //Added on 28022024
+//        if (updateAutoCallRequest.getDisposition() != null)
+//            updateCallDetRequest.setCallStatus(updateAutoCallRequest.getDisposition());
+//
+//        else if (updateAutoCallRequest.getDialstatus() != null)
+//            updateCallDetRequest.setCallStatus(updateAutoCallRequest.getDialstatus());
+//            //
+//
+//            //	if("ANSWER".equalsIgnoreCase(updateAutoCallRequest.getDialstatus()))
+//            //	updateCallDetRequest.setCallStatus("ANSWERED");
+//        else
+//            updateCallDetRequest.setCallStatus(updateAutoCallRequest.getDialstatus());
+//        updateCallDetRequest.setHangupcode(updateAutoCallRequest.getHangupcode());
+//        return campaignService.updateCallDetail(updateCallDetRequest);
+//    }
     @PostMapping("/updateCallDetail")
     public ResponseEntity<GenericResponse> updateCallDetail(@RequestBody UpdateAutoCallRequest updateAutoCallRequest)
             throws ParseException, JsonParseException, JsonMappingException, IOException {
@@ -936,23 +981,11 @@ public class CampaignController {
 
 
         UpdateCallDetRequest updateCallDetRequest = new UpdateCallDetRequest();
-        updateCallDetRequest.setCallDuration(updateAutoCallRequest.getCallduration());
-        updateCallDetRequest.setContactId(updateAutoCallRequest.getActionid());
-        updateCallDetRequest.setCallerResponse("0");
-        //Added on 28022024
-        if (updateAutoCallRequest.getDisposition() != null)
-            updateCallDetRequest.setCallStatus(updateAutoCallRequest.getDisposition());
-
-        else if (updateAutoCallRequest.getDialstatus() != null)
-            updateCallDetRequest.setCallStatus(updateAutoCallRequest.getDialstatus());
-            //
-
-            //	if("ANSWER".equalsIgnoreCase(updateAutoCallRequest.getDialstatus()))
-            //	updateCallDetRequest.setCallStatus("ANSWERED");
-        else
-            updateCallDetRequest.setCallStatus(updateAutoCallRequest.getDialstatus());
+        updateCallDetRequest.setCallduration(String.valueOf(updateAutoCallRequest.getCallduration()));
+        updateCallDetRequest.setActionid(updateAutoCallRequest.getActionid());
+        updateCallDetRequest.setPhone(updateAutoCallRequest.getPhone());
+        updateCallDetRequest.setDisposition(updateAutoCallRequest.getDisposition());
         updateCallDetRequest.setHangupcode(updateAutoCallRequest.getHangupcode());
-
 
         return campaignService.updateCallDetail(updateCallDetRequest);
     }
@@ -1015,7 +1048,7 @@ public class CampaignController {
                 CampaignDetRequest campaignDetRequest = new CampaignDetRequest();
                 campaignDetRequest.setCampaignId(campaignId);
                 campaignDetRequest.setCampaignName(campaignName);
-                List<CampaignDetRequest> campaignDetList = campaignService.getCampaignDetList();
+                List<CampaignDetRequest> campaignDetList = campaignService.getCampaignDetList("default");
                 BigInteger historyId = getUploadHistoryid(campaignDetRequest, file.getOriginalFilename());
                 List<ContactDetDto> contactDetList = csvToData(file.getInputStream(), historyId, isFTP, fileDirectory,
                         new SimpleDateFormat("yyyyMMddhhmmss").format(new Date()), failureDirectory, campaignDetList,
@@ -1064,32 +1097,32 @@ public class CampaignController {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new GenericResponse(message, "Failed"));
     }
 
-    private void updateCallDet(int i, String contactId, String C) {
-        UpdateCallDetRequest UpdateCallDetRequest = new UpdateCallDetRequest();
-        UpdateCallDetRequest.setContactId(contactId);
-        UpdateCallDetRequest.setRetryCount(Integer.parseInt(contactId));
-        if (i == 0) {
-            UpdateCallDetRequest.setCallStatus("Failed");
-        } else if (i % 3 == 0) {
-            UpdateCallDetRequest.setCallStatus("ANSWERED");
-            UpdateCallDetRequest.setCallerResponse("2");
-            UpdateCallDetRequest.setCallDuration("20");
-        } else if (i % 5 == 0) {
-            UpdateCallDetRequest.setCallStatus("Failed");
-        } else if (i % 7 == 0) {
-            UpdateCallDetRequest.setCallStatus("ANSWERED");
-            UpdateCallDetRequest.setCallerResponse("3");
-            UpdateCallDetRequest.setCallDuration("20");
-        } else if (i % 2 == 0) {
-            UpdateCallDetRequest.setCallStatus("ANSWERED");
-            UpdateCallDetRequest.setCallerResponse("1");
-            UpdateCallDetRequest.setCallDuration("20");
-        } else {
-            UpdateCallDetRequest.setCallStatus("ANSWERED");
-            UpdateCallDetRequest.setCallDuration("5");
-        }
-        campaignService.updateCallDetail(UpdateCallDetRequest);
-    }
+//    private void updateCallDet(int i, String contactId, String C) {
+//        UpdateCallDetRequest UpdateCallDetRequest = new UpdateCallDetRequest();
+//        UpdateCallDetRequest.setContactId(contactId);
+//        UpdateCallDetRequest.setRetryCount(Integer.parseInt(contactId));
+//        if (i == 0) {
+//            UpdateCallDetRequest.setCallStatus("Failed");
+//        } else if (i % 3 == 0) {
+//            UpdateCallDetRequest.setCallStatus("ANSWERED");
+//            UpdateCallDetRequest.setCallerResponse("2");
+//            UpdateCallDetRequest.setCallDuration("20");
+//        } else if (i % 5 == 0) {
+//            UpdateCallDetRequest.setCallStatus("Failed");
+//        } else if (i % 7 == 0) {
+//            UpdateCallDetRequest.setCallStatus("ANSWERED");
+//            UpdateCallDetRequest.setCallerResponse("3");
+//            UpdateCallDetRequest.setCallDuration("20");
+//        } else if (i % 2 == 0) {
+//            UpdateCallDetRequest.setCallStatus("ANSWERED");
+//            UpdateCallDetRequest.setCallerResponse("1");
+//            UpdateCallDetRequest.setCallDuration("20");
+//        } else {
+//            UpdateCallDetRequest.setCallStatus("ANSWERED");
+//            UpdateCallDetRequest.setCallDuration("5");
+//        }
+//        campaignService.updateCallDetail(UpdateCallDetRequest);
+//    }
 
     private static void pause(int ms) {
         try {
@@ -1153,23 +1186,23 @@ public class CampaignController {
      * e.getMessage()); e.printStackTrace(); } // return null; }
      */
     @PostMapping("/getRetryReport")
-    public ResponseEntity<GenericResponse> getRetryReport(@RequestBody ReportRequest reportRequest)
+    public ResponseEntity<GenericResponse> getRetryReportAll(@RequestBody ReportRequest reportRequest)
             throws Exception {
         return campaignService.getRetryReport(reportRequest);
     }
 
     @PostMapping("/getLeadWiseSummary")
-    public ResponseEntity<GenericResponseReport> getLeadWiseSummary(@RequestBody ReportRequest reportRequest)
+    public ResponseEntity<GenericResponseReport> getLeadWiseSummaryAll(@RequestBody ReportRequest reportRequest)
             throws ParseException, JsonParseException, JsonMappingException, IOException {
         return campaignService.getLeadWiseSummary(reportRequest);
     }
 
+
     @PostMapping("/getCallVolumeReport")
-    public ResponseEntity<GenericResponseReport> getCallVolumeReport(@RequestBody ReportRequest reportRequest)
+    public ResponseEntity<GenericResponseReport> getCallVolumeReportAll(@RequestBody ReportRequest reportRequest)
             throws ParseException, JsonParseException, JsonMappingException, IOException {
         return campaignService.getCallVolumeReport(reportRequest);
     }
-
 
     @GetMapping("/getRealTimeDashboard")
     public ResponseEntity<GenericResponse> getRealTimeData()
@@ -1177,23 +1210,301 @@ public class CampaignController {
         return campaignService.getRealTimeDashboard();
     }
 
-    @GetMapping("/getCount")
-    public int getCountToCall()
+    @PostMapping("/createDnc")
+    public ResponseEntity<GenericResponse> createDnc(@RequestBody DNCDetRequest DNCDetRequest) {
+        return campaignService.createDnc(DNCDetRequest);
+
+    }
+    @GetMapping("/getdnsValue")
+    public ResponseEntity<GenericResponse> getdnsdetails() {
+        return campaignService.getDnsDetail();
+    }
+    @PostMapping("/updateDNS")
+    public ResponseEntity<GenericResponse> updateDns(@RequestBody DNCDetRequest DNCDetRequest)
             throws ParseException, JsonParseException, JsonMappingException, IOException {
-        return campaignService.getCountToCall("EN_NeuronMember");
+        logger.info("Updating Campaign Detail");
+        return campaignService.updateDns(DNCDetRequest);
+    }
+    private BigInteger getUploadHistoryidDNc(DNCDetRequest dncDetRequest, String fileName) {
+        UploadHistoryDto uploadHistoryDto = new UploadHistoryDto();
+        uploadHistoryDto.setCampaignId("DncId:" + dncDetRequest.getDNCID());
+        uploadHistoryDto.setCampaignName("DncName:" + dncDetRequest.getDncName());
+        uploadHistoryDto.setFilename(fileName);
+        return campaignService.insertUploadHistory(uploadHistoryDto);
     }
 
-    @PostMapping("/createTenant")
-    public ResponseEntity<GenericResponse> createTenant(@RequestBody TenantDetRequest tenantDetRequest){
-        return campaignService.createTenant(tenantDetRequest);
-    }
-    @PostMapping("/updateTenant")
-    public ResponseEntity<GenericResponse> updateTenant(@RequestBody TenantDetRequest tenantDetRequest){
-        return campaignService.updateTenant(tenantDetRequest);
+    @PostMapping("/uploadDncDetail")
+    public ResponseEntity<GenericResponse> uploadDNCDetail(@RequestParam("file") MultipartFile file,
+                                                           @RequestParam(name = "dncid", required = false) String dncId,
+                                                           @RequestParam(name = "dncName", required = false) String dncName)
+            throws ParseException, JsonParseException, JsonMappingException, IOException {
+        GenericResponse response = new GenericResponse();
+
+        CSVPrinter csvPrinters = null;
+        boolean isUploaded = true;
+        List<DncContactDto> failureList = null;
+        if ("text/csv".equalsIgnoreCase(file.getContentType()) || file.getOriginalFilename().endsWith(".csv")) {
+            try {
+                failureList = new ArrayList<>();
+                DNCDetRequest dncDetRequest = new DNCDetRequest();
+                dncDetRequest.setDNCID(dncId);
+                dncDetRequest.setDncName(dncName);
+                List<DNCDetRequest> dncDetRequestList = campaignService.getDNSDetailList();
+                BigInteger historyId = getUploadHistoryidDNc(dncDetRequest, file.getOriginalFilename());
+                List<DncContactDto> contactDetList = csvToDataconverter(dncDetRequest, file.getInputStream(), historyId,failureList, dncDetRequestList,dncId, dncName);
+                DncContactDto contactDto = contactDetList.stream()
+                        .filter(x -> dncId.equalsIgnoreCase(x.getDNCID())).findAny().orElse(null);
+                logger.info("****Converted CSV DATA to Object****");
+                if (contactDetList.isEmpty()) {
+                    response.setError(null);
+                    response.setValue("Failed");
+                    response.setStatus(404);
+                    response.setPath("/campaign/uploadDncDetail");
+                    response.setMessage("Upload failed ");
+                    return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED)
+                            .body(response);
+                }
+                if (contactDto != null) {
+                    logger.info("****Inserting contact details to DB Table****");
+                    for (DncContactDto contactDetDto : contactDetList) {
+                        isUploaded = campaignService.createContactone(contactDetDto);
+                        if (!isUploaded) {
+                            contactDetDto.setFailureReason(
+                                    "dnc details already exist ");
+                            failureList.add(contactDetDto);
+                        }
+                    }
+                    response.setError(null);
+                    response.setValue("Success");
+                    response.setStatus(200);
+                    response.setPath("/campaign/uploadDncDetail");
+                    response.setMessage("Uploaded the file successfully: " + file.getOriginalFilename());
+                    return ResponseEntity.status(HttpStatus.OK).body(response);
+                }
+                else if (contactDto == null && !contactDetList.isEmpty()) {
+                    response.setError("incorrect dnc id");
+                    response.setValue("Failed");
+                    response.setStatus(404);
+                    response.setPath("/campaign/uploadDncDetail");
+                    response.setMessage("Upload failed. Identified incorrect dnc id, expected Id is " + dncId);
+                    return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED)
+                            .body(response);
+                }
+            } catch (Exception e) {
+                logger.error("Error occured in upload dnsDetail:: " + e.getMessage());
+                response.setError("Error occured in upload dnsDetail:: "+ e.getMessage());
+                response.setValue("Failed");
+                response.setStatus(404);
+                response.setPath("/campaign/uploadDncDetail");
+                response.setMessage("Could not upload the file: " + file.getOriginalFilename() + "!");
+                return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED)
+                        .body(response);
+            }
+        }
+        response.setError("BAD_REQUEST");
+        response.setValue("Failed");
+        response.setStatus(400);
+        response.setPath("/campaign/uploadDncDetail");
+        response.setMessage("Please upload a csv file!");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
-    @GetMapping("/getTenant/list")
-    public ResponseEntity<GenericResponse> getTenantList(){
-        return campaignService.getTenantList();
+    private List<DncContactDto> csvToDataconverter(DNCDetRequest dncDetRequest, InputStream inputStream, BigInteger historyId, List<DncContactDto> failureList, List<DNCDetRequest> dncDetRequestList,String dncId, String dncName) {
+        List<DncContactDto> contactList = new ArrayList<>();
+        CSVPrinter csvPrinter = null;
+        CSVParser csvParser = null;
+        BufferedReader fileReader = null;
+        try {
+            StringBuilder reason = null;
+            fileReader = new BufferedReader(new InputStreamReader(inputStream));
+
+            csvParser = new CSVParser(fileReader,
+                    CSVFormat.DEFAULT.withFirstRecordAsHeader().withIgnoreHeaderCase().withTrim());
+
+//            BufferedReader filereader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+//
+//            csvParser = new CSVParser(filereader,
+//                    CSVFormat.DEFAULT.withFirstRecordAsHeader().withIgnoreHeaderCase().withTrim());
+
+            for (CSVRecord csvRecord : csvParser) {
+                DncContactDto contactDto = new DncContactDto();
+                contactDto.setDNCID(dncId);
+                contactDto.setDncName(dncName);
+                contactDto.setSerialnumber(csvRecord.get("serialNumber"));
+                contactDto.setContactNumber(csvRecord.get("contactNumber"));
+                if (validateFileDataDNC(csvRecord, reason, dncDetRequestList, contactDto)) {
+                    contactList.add(contactDto);
+                } else {
+                    contactDto.setFailureReason(reason.toString());
+                    failureList.add(contactDto);
+                }
+            }
+            csvParser.close();
+        } catch (IOException e) {
+            logger.error("Fail to parse CSV file: " + e.getMessage());
+        } finally {
+            if (csvParser != null) {
+                try {
+                    csvParser.close();
+                } catch (IOException e) {
+                    logger.error("Error closing CSVParser: " + e.getMessage());
+                }
+            }
+        }
+        return contactList;
     }
+
+    private static boolean validateFileDataDNC(CSVRecord csvRecord, StringBuilder reason,
+                                               List<DNCDetRequest> campaignDetList, DncContactDto contactDet) {
+        boolean isValid = true;
+
+        if (csvRecord.get("contactNumber") == null || csvRecord.get("contactNumber").isEmpty()) {
+            reason.append("CcontactNumber is missing;");
+            isValid = false;
+        }
+        if (!isValid)
+            logger.info("validateFileData : " + reason);
+        return isValid;
+    }
+
+
+    @GetMapping("/getSurveyContactDet")
+    public String getSurveyContactDet()
+            throws ParseException, JsonParseException, JsonMappingException, IOException {
+        return campaignService.getDummySurveyResponse();
+    }
+
+
+    @SuppressWarnings("unchecked")
+    @Scheduled(cron = "0 0/2 * * * *") // 15 minutes (15 * 60 * 1000 milliseconds)
+    public void fetchData() {
+        try {
+            String token = getTokenData();
+            Map<String, Object> surveyContMap = null;
+            if (token != null && !token.equalsIgnoreCase("Error")) {
+                HttpResponse<String> response = Unirest.get(SurveyApi)
+                        .header("accept", "application/json")
+                        .header("Authorization", "Bearer " + token)
+                        .asString();
+                if (response != null) {
+                    int status = response.getStatus();
+                    if (status == 200) {
+                        String responseBody = response.getBody();
+//                        logger.info("Survey Contact Detail Response :" + responseBody);
+                        ObjectMapper mapper = new ObjectMapper();
+                        try {
+                            surveyContMap = mapper.readValue(responseBody, Map.class);
+                            if (surveyContMap.containsKey("data")) {
+                                List<Map<String, Object>> surveyContList = (List<Map<String, Object>>) surveyContMap.get("data");
+                                campaignService.insertSurveyContactDet(surveyContList);
+                            }
+                        } catch (Exception e) {
+                            StringWriter str = new StringWriter();
+                            e.printStackTrace(new PrintWriter(str));
+                            logger.error("Exception while Inserting Survey Contact Details API :" + str.toString());
+                        }
+                    } else {
+                        logger.info("Survey Response Status is Not 200 and the Failed Response Code is :" + status);
+                    }
+                } else {
+                    logger.info("Survey Response is NULL");
+                }
+            } else {
+                logger.info("Token is NULL, Hence not able to invoke Survey Contact Details API");
+            }
+        } catch (UnirestException e) {
+            StringWriter str = new StringWriter();
+            e.printStackTrace(new PrintWriter(str));
+            logger.error("Exception while Fetching Survey Contact Details API :" + str.toString());
+        }
+    }
+
+
+    public String getTokenData() {
+        String token = null;
+        try {
+            StringBuilder sb = new StringBuilder("grant_type=password");
+            sb.append("&username=").append(URLEncoder.encode(userName, "UTF-8"));
+            sb.append("&password=").append(URLEncoder.encode(password, "UTF-8"));
+            String body = sb.toString();
+            HttpResponse<String> tokenresponse = Unirest.post(tokenurl)
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .body(body)
+                    .asString();
+            int responseCode = tokenresponse.getStatus();
+            if (responseCode == 200) {
+                JSONObject json = new JSONObject(tokenresponse.getBody());
+                if (json.has("access_token")) {
+                    token = (String) json.get("access_token");
+                } else {
+                    logger.info("Access Token not available in the response");
+                    token = "Error";
+                }
+            } else {
+                token = "Error";
+                logger.info("Access Token Error Response code :" + responseCode);
+            }
+        } catch (Exception e) {
+            StringWriter str = new StringWriter();
+            e.printStackTrace(new PrintWriter(str));
+            logger.error("Exception in Get Token API :" + str.toString());
+        }
+        return token;
+    }
+
+
+    public static String getToken() {
+        String token = null;
+        try {
+            StringBuilder sb = new StringBuilder("grant_type=password");
+            sb.append("&username=").append(URLEncoder.encode("admin", "UTF-8"));
+            sb.append("&password=").append(URLEncoder.encode("admin", "UTF-8"));
+            String body = sb.toString();
+            HttpResponse<String> tokenresponse = Unirest.post("http://192.168.45.59:82/OutboundDialer/token")
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .body(body)
+                    .asString();
+            System.out.println("Token API Response Code :" + tokenresponse.getStatus());
+            System.out.println(tokenresponse.getBody());
+            JSONObject json = new JSONObject(tokenresponse.getBody());
+            String accessToken = (String) json.get("access_token");
+
+            HttpResponse<String> response = Unirest.get("http://192.168.45.59:82/OutboundDialer/api/SurveyOB/GetSurveyDetails?actionid=0")
+                    .header("accept", "application/json")
+                    .header("Authorization", "Bearer " + accessToken)
+                    .asString();
+
+            if (response != null) {
+                int status = response.getStatus();
+                if (status == 200) {
+                    String responseBody = response.getBody();
+                    logger.info("Survey Contact Detail Response :" + responseBody);
+                    ObjectMapper mapper = new ObjectMapper();
+                    try {
+                        Map<String, Object> surveyContMap = mapper.readValue(responseBody, Map.class);
+                        if (surveyContMap.containsKey("data")) {
+                            List<Map<String, String>> surveyContList = (List<Map<String, String>>) surveyContMap.get("data");
+
+                        }
+                        logger.info("Response Map :" + surveyContMap);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                } else {
+
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return token;
+    }
+
+
+
+    public static void main(String[] args) {
+        System.out.println(getToken());
+    }
+
+
 }

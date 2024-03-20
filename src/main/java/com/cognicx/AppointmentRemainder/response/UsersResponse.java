@@ -7,12 +7,11 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import com.cognicx.AppointmentRemainder.model.Reports;
 import com.cognicx.AppointmentRemainder.Dto.SurveyTypeDto;
 import com.cognicx.AppointmentRemainder.Dto.UserDto;
 import com.cognicx.AppointmentRemainder.Dto.UserLeaveDetailsDto;
-import com.cognicx.AppointmentRemainder.Request.UserRegionRequest;
-import com.cognicx.AppointmentRemainder.model.Reports;
-
+import com.cognicx.AppointmentRemainder.message.request.UserRegionRequest;
 
 public class UsersResponse {
 	    

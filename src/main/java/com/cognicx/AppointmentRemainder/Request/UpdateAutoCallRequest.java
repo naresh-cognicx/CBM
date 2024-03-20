@@ -1,7 +1,7 @@
 package com.cognicx.AppointmentRemainder.Request;
 
 public class UpdateAutoCallRequest {
-	
+
 	private String actionid;
 	private String phone;
 	private String callstart;

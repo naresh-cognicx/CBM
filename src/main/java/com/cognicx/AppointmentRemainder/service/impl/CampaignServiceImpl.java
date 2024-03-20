@@ -6,10 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
-import java.sql.Timestamp;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -18,8 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import com.cognicx.AppointmentRemainder.Request.*;
-import com.cognicx.AppointmentRemainder.response.TenantDetResponse;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -29,6 +24,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -38,8 +34,17 @@ import org.springframework.stereotype.Service;
 
 import com.cognicx.AppointmentRemainder.Dto.ContactDetDto;
 import com.cognicx.AppointmentRemainder.Dto.CustomerDataDto;
+import com.cognicx.AppointmentRemainder.Dto.DncContactDto;
 import com.cognicx.AppointmentRemainder.Dto.RetryCountDto;
+import com.cognicx.AppointmentRemainder.Dto.SurveyContactDetDto;
 import com.cognicx.AppointmentRemainder.Dto.UploadHistoryDto;
+import com.cognicx.AppointmentRemainder.Request.CampaignDetRequest;
+import com.cognicx.AppointmentRemainder.Request.CampaignRealTimeDashboard;
+import com.cognicx.AppointmentRemainder.Request.CampaignStatus;
+import com.cognicx.AppointmentRemainder.Request.CampaignWeekDetRequest;
+import com.cognicx.AppointmentRemainder.Request.DNCDetRequest;
+import com.cognicx.AppointmentRemainder.Request.ReportRequest;
+import com.cognicx.AppointmentRemainder.Request.UpdateCallDetRequest;
 import com.cognicx.AppointmentRemainder.dao.CampaignDao;
 import com.cognicx.AppointmentRemainder.response.GenericHeaderResponse;
 import com.cognicx.AppointmentRemainder.response.GenericResponse;
@@ -53,6 +58,9 @@ public class CampaignServiceImpl implements CampaignService {
 
 	@Autowired
 	CampaignDao campaignDao;
+
+	@Value("${cont.errorcodes}")
+	private String errorcodes;
 
 	private Logger logger = LoggerFactory.getLogger(CampaignServiceImpl.class);
 
@@ -81,11 +89,11 @@ public class CampaignServiceImpl implements CampaignService {
 	}
 
 	@Override
-	public ResponseEntity<GenericResponse> getCampaignDetail() {
+	public ResponseEntity<GenericResponse> getCampaignDetail(String userGroup) {
 		GenericResponse genericResponse = new GenericResponse();
 		List<CampaignDetRequest> campaignDetList = null;
 		try {
-			campaignDetList = getCampaignDetList();
+			campaignDetList = getCampaignDetList(userGroup);
 			genericResponse.setStatus(200);
 			genericResponse.setValue(campaignDetList);
 			genericResponse.setMessage("Success");
@@ -98,6 +106,54 @@ public class CampaignServiceImpl implements CampaignService {
 
 		return new ResponseEntity<GenericResponse>(new GenericResponse(genericResponse), HttpStatus.OK);
 	}
+
+	@Override
+	public List<CampaignDetRequest> getCampaignDetList(String userGroup) {
+		List<CampaignDetRequest> campaignDetList;
+		campaignDetList = new ArrayList<>();
+		CampaignStatus campaignStatus=null;
+		List<Object[]> campainDetObjList = campaignDao.getCampaignDet(userGroup);
+		Map<String, List<CampaignWeekDetRequest>> campainWeekDetList = campaignDao.getCampaignWeekDet();
+		if (campainDetObjList != null && !campainDetObjList.isEmpty()) {
+			for (Object[] obj : campainDetObjList) {
+				CampaignDetRequest campaignDetRequest = new CampaignDetRequest();
+				campaignDetRequest.setCampaignId(String.valueOf(obj[0]));
+				campaignDetRequest.setCampaignName(String.valueOf(obj[1]));
+				campaignDetRequest.setCampaignActive(String.valueOf(obj[3]));
+				campaignDetRequest.setMaxAdvNotice(String.valueOf(obj[4]));
+				campaignDetRequest.setRetryDelay(String.valueOf(obj[5]));
+				campaignDetRequest.setRetryCount(String.valueOf(obj[6]));
+				campaignDetRequest.setConcurrentCall(String.valueOf(obj[7]));
+				campaignDetRequest.setStartDate(String.valueOf(obj[8]));
+				campaignDetRequest.setStartTime(String.valueOf(obj[9]));
+				campaignDetRequest.setEndDate(String.valueOf(obj[10]));
+				campaignDetRequest.setEndTime(String.valueOf(obj[11]));
+				campaignDetRequest.setFtpLocation(String.valueOf(obj[12]));
+				if (obj[13] != null && !";".equalsIgnoreCase(String.valueOf(obj[13]))) {
+					String[] ftpCredendials = String.valueOf(obj[13]).split(";");
+					campaignDetRequest.setFtpUsername(ftpCredendials[0]);
+					campaignDetRequest.setFtpPassword(ftpCredendials[1]);
+				}
+				campaignDetRequest.setFileName(String.valueOf(obj[14]));
+				campaignDetRequest.setCallBefore(String.valueOf(obj[15]));
+				campaignDetRequest.setDncId(String.valueOf(obj[16]));
+				campaignDetRequest.setUserGroup(String.valueOf(obj[17]));
+				campaignDetRequest.setDailingMode(String.valueOf(obj[18]));;
+				campaignDetRequest.setQueue(String.valueOf(obj[19]));
+				campaignDetRequest.setDispositionID(String.valueOf(obj[20]));
+
+				if (campainWeekDetList != null && campainWeekDetList.containsKey(campaignDetRequest.getCampaignId()))
+					campaignDetRequest.setWeekDaysTime(campainWeekDetList.get(campaignDetRequest.getCampaignId()));
+				campaignDetList.add(campaignDetRequest);
+				campaignStatus=new CampaignStatus();
+				campaignStatus.setCampaignId(campaignDetRequest.getCampaignId());
+				campaignDetRequest.setSchedulerEnabled(campaignDao.getCampaignStatus(campaignStatus));
+				logger.info("Campaign Details :"+campaignDetRequest.toString());
+			}
+		}
+		return campaignDetList;
+	}
+
 
 	@Override
 	public List<CampaignDetRequest> getCampaignDetList() {
@@ -128,6 +184,7 @@ public class CampaignServiceImpl implements CampaignService {
 				}
 				campaignDetRequest.setFileName(String.valueOf(obj[14]));
 				campaignDetRequest.setCallBefore(String.valueOf(obj[15]));
+				campaignDetRequest.setDncId(String.valueOf(obj[16]));
 				if (campainWeekDetList != null && campainWeekDetList.containsKey(campaignDetRequest.getCampaignId()))
 					campaignDetRequest.setWeekDaysTime(campainWeekDetList.get(campaignDetRequest.getCampaignId()));
 				campaignDetList.add(campaignDetRequest);
@@ -139,7 +196,7 @@ public class CampaignServiceImpl implements CampaignService {
 		}
 		return campaignDetList;
 	}
-
+	
 	@Override
 	public ResponseEntity<GenericResponse> updateCampaign(CampaignDetRequest campaignDetRequest) {
 		GenericResponse genericResponse = new GenericResponse();
@@ -165,40 +222,14 @@ public class CampaignServiceImpl implements CampaignService {
 	}
 
 	@Override
-	public ResponseEntity<GenericResponse> updateTenant(TenantDetRequest tenantDetRequest) {
-		GenericResponse genericResponse = new GenericResponse();
-		try {
-			boolean isUpdated = campaignDao.updateTenantDet(tenantDetRequest);
-			if (isUpdated) {
-				genericResponse.setStatus(200);
-				genericResponse.setValue("Success");
-				genericResponse.setMessage("Tenant details updated successfully");
-			} else {
-				genericResponse.setStatus(400);
-				genericResponse.setValue("Failure");
-				genericResponse.setMessage("Error occured while updating tenant details");
-			}
-		} catch (Exception e) {
-			logger.error("Error in CampaignServiceImpl::updateCampaign " + e);
-			genericResponse.setStatus(400);
-			genericResponse.setValue("Failure");
-			genericResponse.setMessage("Error occured while updating Campaign");
-		}
-
-		return new ResponseEntity<GenericResponse>(new GenericResponse(genericResponse), HttpStatus.OK);
-	}
-
-	@Override
 	public ResponseEntity<GenericResponse> updateCallDetail(UpdateCallDetRequest updateCallDetRequest) {
 		GenericResponse genericResponse = new GenericResponse();
 		try {
 			logger.info("**********UPDATE CALL DETAILS INPUT**********");
-			logger.info("Caller response: " + updateCallDetRequest.getCallerResponse());
-			logger.info("Call Status: " + updateCallDetRequest.getCallStatus());
-			logger.info("Call Duration: " + updateCallDetRequest.getCallDuration());
-			logger.info("Contact Id: " + updateCallDetRequest.getContactId());
-			logger.info("Contact Id: " + updateCallDetRequest.getContactId());
-		//	logger.info("Hangupcode: " + updateCallDetRequest.getHangupcode());
+			logger.info("Phone : " + updateCallDetRequest.getPhone());
+			logger.info("Call Duration: " + updateCallDetRequest.getCallduration());
+			logger.info("Action Id: " + updateCallDetRequest.getActionid());
+			//	logger.info("Hangupcode: " + updateCallDetRequest.getHangupcode());
 			boolean isUpdated = campaignDao.updateCallDetail(updateCallDetRequest);
 			if (isUpdated) {
 				genericResponse.setStatus(200);
@@ -290,6 +321,7 @@ public class CampaignServiceImpl implements CampaignService {
 					valueMap.put("answered", obj[5]);
 					valueMap.put("busy", obj[6]);
 					valueMap.put("others", obj[11]);
+
 					/*
 					 * valueMap.put("confirmed", obj[7]); valueMap.put("canceleld", obj[8]);
 					 * valueMap.put("rescheduled", obj[9]); valueMap.put("noResponse", obj[10]);
@@ -346,7 +378,7 @@ public class CampaignServiceImpl implements CampaignService {
 				subHeaderlist.add(new GenericHeaderResponse("Minimum Payment", "Minimum Payment"));
 				subHeaderlist.add(new GenericHeaderResponse("Due Date", "Due Date"));
 				subHeaderlist.add(new GenericHeaderResponse("Call Status", "callStatus"));
-			//	subHeaderlist.add(new GenericHeaderResponse("Caller Choice", "callerChoice"));
+				//	subHeaderlist.add(new GenericHeaderResponse("Caller Choice", "callerChoice"));
 				headerlist.add(new GenericHeaderResponse("Call Detail Report", "", subHeaderlist));
 				for (Object[] obj : resultList) {
 					Map<Object, Object> valueMap = new LinkedHashMap<>();
@@ -358,7 +390,7 @@ public class CampaignServiceImpl implements CampaignService {
 					valueMap.put("Minimum Payment", obj[6]);
 					valueMap.put("Due Date", obj[7]);
 					valueMap.put("callStatus", obj[9]);
-				//	valueMap.put("callerChoice", obj[8] != null ? callerChoice.get(obj[7]) : null);
+					//	valueMap.put("callerChoice", obj[8] != null ? callerChoice.get(obj[7]) : null);
 					Map<Object, Object> callRetryDetail = new LinkedHashMap<>();
 					callRetryDetail.put("lastRetryStatus", obj[9]);
 					callRetryDetail.put("retryCount", obj[11]);
@@ -674,7 +706,7 @@ public class CampaignServiceImpl implements CampaignService {
 					uploadHistoryDto.setUploadedOn(String.valueOf(obj[3]));
 					uploadHistoryDto.setFilename(String.valueOf(obj[4]));
 					uploadHistoryDto
-							.setContactUploaded(campaignDao.getTotalContactNo(uploadHistoryDto.getUploadHistoryId()));
+					.setContactUploaded(campaignDao.getTotalContactNo(uploadHistoryDto.getUploadHistoryId()));
 					uploadHistoryList.add(uploadHistoryDto);
 				}
 			}
@@ -731,19 +763,19 @@ public class CampaignServiceImpl implements CampaignService {
 	public List<CustomerDataDto> getCustomerData() {
 		return campaignDao.getCustomerData();
 	}
-	
+
 	@Override
 	public ResponseEntity<GenericResponse> getRetryReport(ReportRequest reportRequest) {
 		GenericResponse genericResponse = new GenericResponse();
 		try {
 			RetryCountDto retryCountDto = campaignDao.getRetryReport(reportRequest);
-			
+
 			if(retryCountDto!=null) {
 				genericResponse.setStatus(200);
 				genericResponse.setValue(retryCountDto);
 				genericResponse.setMessage("Contact fetched successfully");
 			}
-				
+
 		} catch (Exception e) {
 			logger.error("Error occured in CampaignServiceImpl::getRetryReport" + e);
 			genericResponse.setStatus(400);
@@ -752,7 +784,28 @@ public class CampaignServiceImpl implements CampaignService {
 		}
 		return new ResponseEntity<GenericResponse>(new GenericResponse(genericResponse), HttpStatus.OK);
 	}
-	
+
+	@Override
+	public ResponseEntity<GenericResponse> getRetryReport(ReportRequest reportRequest, String userGroup) throws Exception {
+		GenericResponse genericResponse = new GenericResponse();
+		try {
+			RetryCountDto retryCountDto = campaignDao.getRetryReport(reportRequest,userGroup);
+
+			if(retryCountDto!=null) {
+				genericResponse.setStatus(200);
+				genericResponse.setValue(retryCountDto);
+				genericResponse.setMessage("Contact fetched successfully");
+			}
+
+		} catch (Exception e) {
+			logger.error("Error occured in CampaignServiceImpl::getRetryReport" + e);
+			genericResponse.setStatus(400);
+			genericResponse.setValue("Failure");
+			genericResponse.setMessage("Error occured while fetching the report details");
+		}
+		return new ResponseEntity<GenericResponse>(new GenericResponse(genericResponse), HttpStatus.OK);
+	}
+
 	@Override
 	public ResponseEntity<GenericResponseReport> getLeadWiseSummary(ReportRequest reportRequest) {
 		GenericResponseReport genericResponse = new GenericResponseReport();
@@ -783,7 +836,7 @@ public class CampaignServiceImpl implements CampaignService {
 					Map<Object, Object> valueMap = new LinkedHashMap<>();
 					valueMap.put("totalContact", obj[0]);
 					valueMap.put("contactCalled", obj[1]);
-				//	valueMap.put("contactConnected", obj[2]);
+					//	valueMap.put("contactConnected", obj[2]);
 					valueMap.put("answered", obj[3]);
 					valueMap.put("busy", obj[4]);
 					valueMap.put("notanswered", obj[5]);
@@ -811,7 +864,67 @@ public class CampaignServiceImpl implements CampaignService {
 		}
 		return new ResponseEntity<GenericResponseReport>(new GenericResponseReport(genericResponse), HttpStatus.OK);
 	}
-		
+
+	@Override
+	public ResponseEntity<GenericResponseReport> getLeadWiseSummary(ReportRequest reportRequest, String userGroup) {
+		GenericResponseReport genericResponse = new GenericResponseReport();
+		List<GenericHeaderResponse> headerlist = null;
+		List<GenericHeaderResponse> subHeaderlist = null;
+		List<Map<Object, Object>> valueList = null;
+		try {
+			List<Object[]> resultList = campaignDao.getLeadWiseSummary(reportRequest,userGroup);
+			if (resultList != null && !resultList.isEmpty()) {
+				headerlist = new ArrayList<GenericHeaderResponse>();
+				subHeaderlist = new ArrayList<GenericHeaderResponse>();
+				valueList = new ArrayList<Map<Object, Object>>();
+				subHeaderlist.add(new GenericHeaderResponse("Total Contact", "totalContact"));
+				subHeaderlist.add(new GenericHeaderResponse("Contacts Called", "contactCalled"));
+				//subHeaderlist.add(new GenericHeaderResponse("Contacts Connected", "contactConnected"));
+				subHeaderlist.add(new GenericHeaderResponse("Ring No Answered", "answered"));
+				subHeaderlist.add(new GenericHeaderResponse("Busy", "busy"));
+				subHeaderlist.add(new GenericHeaderResponse("Not Answered", "notanswered"));
+				subHeaderlist.add(new GenericHeaderResponse("Others", "others"));
+				/*
+				 * subHeaderlist.add(new GenericHeaderResponse("Confirmed", "confirmed"));
+				 * subHeaderlist.add(new GenericHeaderResponse("Cancelled", "canceleld"));
+				 * subHeaderlist.add(new GenericHeaderResponse("Rescheduled", "rescheduled"));
+				 * subHeaderlist.add(new GenericHeaderResponse("No Response", "noResponse"));
+				 */
+				headerlist.add(new GenericHeaderResponse("Lead Wise Summary Report", "", subHeaderlist));
+				for (Object[] obj : resultList) {
+					Map<Object, Object> valueMap = new LinkedHashMap<>();
+					valueMap.put("totalContact", obj[0]);
+					valueMap.put("contactCalled", obj[1]);
+					//	valueMap.put("contactConnected", obj[2]);
+					valueMap.put("answered", obj[3]);
+					valueMap.put("busy", obj[4]);
+					valueMap.put("notanswered", obj[5]);
+					valueMap.put("others", obj[10]);
+					/*
+					 * valueMap.put("confirmed", obj[7]); valueMap.put("canceleld", obj[8]);
+					 * valueMap.put("rescheduled", obj[9]); valueMap.put("noResponse", obj[10]);
+					 */
+					valueList.add(valueMap);
+				}
+				genericResponse.setStatus(200);
+				genericResponse.setHeader(headerlist);
+				genericResponse.setValue(valueList);
+				genericResponse.setMessage("Data fetched sucessfully");
+			} else {
+				genericResponse.setStatus(200);
+				genericResponse.setValue(null);
+				genericResponse.setMessage("No data found");
+			}
+		} catch (Exception e) {
+			logger.error("Error in CampaignServiceImpl::summaryReport " + e);
+			genericResponse.setStatus(400);
+			genericResponse.setValue(null);
+			genericResponse.setMessage("Error occured generating report");
+		}
+		return new ResponseEntity<GenericResponseReport>(new GenericResponseReport(genericResponse), HttpStatus.OK);
+	}
+
+
 	@Override
 	public ResponseEntity<GenericResponseReport> getCallVolumeReport(ReportRequest reportRequest) {
 		GenericResponseReport genericResponse = new GenericResponseReport();
@@ -872,8 +985,70 @@ public class CampaignServiceImpl implements CampaignService {
 		}
 		return new ResponseEntity<GenericResponseReport>(new GenericResponseReport(genericResponse), HttpStatus.OK);
 	}
-	
-	
+
+	@Override
+	public ResponseEntity<GenericResponseReport> getCallVolumeReport(ReportRequest reportRequest, String userGroup) {
+		GenericResponseReport genericResponse = new GenericResponseReport();
+		List<GenericHeaderResponse> headerlist = null;
+		List<GenericHeaderResponse> subHeaderlist = null;
+		List<Map<Object, Object>> valueList = null;
+		try {
+			List<Object[]> resultList = campaignDao.getCallVolumeReport(reportRequest,userGroup);
+			if (resultList != null && !resultList.isEmpty()) {
+				headerlist = new ArrayList<GenericHeaderResponse>();
+				subHeaderlist = new ArrayList<GenericHeaderResponse>();
+				valueList = new ArrayList<Map<Object, Object>>();
+				subHeaderlist.add(new GenericHeaderResponse("Campaign Date", "date"));
+				subHeaderlist.add(new GenericHeaderResponse("Total Contact", "totalContact"));
+				subHeaderlist.add(new GenericHeaderResponse("Contacts Called", "contactCalled"));
+				subHeaderlist.add(new GenericHeaderResponse("Contacts Connected", "contactConnected"));
+				subHeaderlist.add(new GenericHeaderResponse("Ring No Answered", "answered"));
+				subHeaderlist.add(new GenericHeaderResponse("Busy", "busy"));
+				subHeaderlist.add(new GenericHeaderResponse("Not Answered", "notanswered"));
+				subHeaderlist.add(new GenericHeaderResponse("Others", "others"));
+				/*
+				 * subHeaderlist.add(new GenericHeaderResponse("Confirmed", "confirmed"));
+				 * subHeaderlist.add(new GenericHeaderResponse("Cancelled", "canceleld"));
+				 * subHeaderlist.add(new GenericHeaderResponse("Rescheduled", "rescheduled"));
+				 * subHeaderlist.add(new GenericHeaderResponse("No Response", "noResponse"));
+				 */
+				headerlist.add(new GenericHeaderResponse("Lead Wise Summary Report", "", subHeaderlist));
+				for (Object[] obj : resultList) {
+					Map<Object, Object> valueMap = new LinkedHashMap<>();
+					valueMap.put("date", obj[0]);
+					valueMap.put("totalContact", obj[1]);
+					valueMap.put("contactCalled", obj[2]);
+					valueMap.put("contactConnected", obj[3]);
+					valueMap.put("answered", obj[4]);
+					valueMap.put("busy", obj[5]);
+					valueMap.put("notanswered", obj[6]);
+					valueMap.put("others", obj[11]);
+					/*
+					 * valueMap.put("confirmed", obj[7]); valueMap.put("canceleld", obj[8]);
+					 * valueMap.put("rescheduled", obj[9]); valueMap.put("noResponse", obj[10]);
+					 */
+					valueList.add(valueMap);
+				}
+				genericResponse.setStatus(200);
+				genericResponse.setHeader(headerlist);
+				genericResponse.setValue(valueList);
+				genericResponse.setMessage("Data fetched sucessfully");
+			} else {
+				genericResponse.setStatus(200);
+				genericResponse.setValue(null);
+				genericResponse.setMessage("No data found");
+			}
+		} catch (Exception e) {
+			logger.error("Error in CampaignServiceImpl::summaryReport " + e);
+			genericResponse.setStatus(400);
+			genericResponse.setValue(null);
+			genericResponse.setMessage("Error occured generating report");
+		}
+		return new ResponseEntity<GenericResponseReport>(new GenericResponseReport(genericResponse), HttpStatus.OK);
+
+	}
+
+
 	@Override
 	public boolean createDummyContact(ContactDetDto contactDetDto) {
 		boolean isCreated;
@@ -892,12 +1067,12 @@ public class CampaignServiceImpl implements CampaignService {
 			status = campaignDao.getCampaignStatus(campaignStatus);
 		} catch (Exception e) {
 			logger.error("Error in CampaignServiceImpl::getCampaignStatus " + e);
-			
+
 		}
 		return status;
 	}
 
-	
+
 	@Override
 	public ResponseEntity<GenericResponse> getRealTimeDashboard() {
 		GenericResponse genericResponse = new GenericResponse();
@@ -916,7 +1091,95 @@ public class CampaignServiceImpl implements CampaignService {
 
 		return new ResponseEntity<GenericResponse>(new GenericResponse(genericResponse), HttpStatus.OK);
 	}
-	
+
+//	@Override
+//	public List<CampaignRealTimeDashboard> getRealTimeData() throws Exception {
+//		List<CampaignRealTimeDashboard> campaignRTList=null;
+//		SimpleDateFormat sdf=new SimpleDateFormat("yyyy-MM-dd");
+//		SimpleDateFormat sdfTime=new SimpleDateFormat("HH:mm:ss");
+//		try {
+//			campaignRTList = new ArrayList<>();
+//			List<Object[]> campainDetObjList = campaignDao.getCampaignDetForRT();
+//			if (campainDetObjList != null && !campainDetObjList.isEmpty()) {
+//				for (Object[] obj : campainDetObjList) {
+//
+//					CampaignRealTimeDashboard campaignRT=new CampaignRealTimeDashboard();
+//					String campaignID=String.valueOf(obj[0]);
+//					campaignRT.setCampaignId(String.valueOf(obj[0]));
+//					campaignRT.setCampaignName(String.valueOf(obj[1]));
+//					campaignRT.setCampaignStatus(String.valueOf(obj[2]));
+//					String status=null;
+//					String startDate=String.valueOf(obj[3]);
+//					String EndDate=String.valueOf(obj[4]);
+//					String startTime=String.valueOf(obj[5]);
+//					String endTime=String.valueOf(obj[6]);
+//					String conCall=String.valueOf(obj[7]);
+//					String dncID=String.valueOf(obj[8]);
+//
+//					Integer intConcall=Integer.parseInt(conCall);
+//					String currDate=sdf.format(new Date());
+//					String currTime=sdfTime.format(new Date());
+//					logger.info("Start Date : "+startDate+ " :: End Date"+EndDate);
+//					logger.info("Start Time : "+startTime+ " :: End Time"+endTime);
+//					logger.info("Current Date : "+currDate+ " :: Current Time"+currTime);
+//					campaignRT.setStartDate(startDate+" "+startTime);
+//					campaignRT.setEndDate(EndDate+" "+endTime);
+//					Integer activeCall=campaignDao.getActiveContDetails(campaignID);
+//					campaignRT.setOncall(activeCall);
+//					campaignRT.setTotalline(intConcall-activeCall);
+//
+//					Date startDat=sdf.parse(startDate);
+//					Date endDat=sdf.parse(EndDate);
+//					Date currDat=sdf.parse(currDate);
+//					Date startTim=sdfTime.parse(startTime);
+//					Date endTim=sdfTime.parse(endTime);
+//					Date currTim=sdfTime.parse(currTime);
+//					if((currDat.after(startDat) || currDat.equals(startDat)) && (currDat.before(endDat) || currDat.equals(endDat))) {
+//						if((currTim.after(startTim)||currTim.equals(startTim)) && (currTim.before(endTim))){
+//							status="Running";
+//						}else {
+//							status="Paused";
+//						}
+//					}else if(currDat.before(startDat)){
+//						status="Ready";
+//					}else if(currDat.after(endDat)) {
+//						status="Completed";
+//					}
+//					campaignRT.setCampaignStatus(status);
+//					Integer contactLength=campaignDao.getCampaignBasedContactCount(campaignID);
+//					campaignRT.setListLength(String.valueOf(contactLength));
+//					Integer callpending=campaignDao.getCampaginBasedContactStatus(campaignID,"NEW");
+//					campaignRT.setPending(callpending);
+//					Integer callcompleted=contactLength-callpending;
+//					campaignRT.setCompleted(callcompleted);
+//					//
+//					Integer answeredCount=campaignDao.getCampaginBasedContactStatus(campaignID,"ANSWERED");
+//					campaignRT.setAnswered(answeredCount);
+//					Integer busyCount=campaignDao.getCampaginBasedContactStatus(campaignID,"BUSY");
+//					campaignRT.setLinebusy(busyCount);
+//					Integer NoAnswerCount=campaignDao.getCampaginBasedContactStatus(campaignID,"NOANSWER");
+//					campaignRT.setNoanswer(NoAnswerCount);
+//					String[] errorCodes=errorcodes.split(",");
+//					Integer errorCounts=campaignDao.getActiveContErrorDetails(campaignID, errorCodes);
+//					campaignRT.setError(errorCounts);
+//
+//					campaignRT.setETC(getETC(campaignID, startTim, currTim, endTim,contactLength, callcompleted, callpending,startDat,endDat,currDat));
+//
+//					campaignRT.setDND(campaignDao.getCampBasedDNCSize(dncID));
+//
+//
+//					campaignRTList.add(campaignRT);
+//
+//
+//
+//				}
+//			}
+//		}catch(Exception e) {
+//			logger.error("Error in CampaignServiceImpl::getRealTimeData " + e);
+//		}
+//		return campaignRTList;
+//	}
+
 	@Override
 	public List<CampaignRealTimeDashboard> getRealTimeData() throws Exception {
 		List<CampaignRealTimeDashboard> campaignRTList=null;
@@ -927,7 +1190,7 @@ public class CampaignServiceImpl implements CampaignService {
 			List<Object[]> campainDetObjList = campaignDao.getCampaignDetForRT();
 			if (campainDetObjList != null && !campainDetObjList.isEmpty()) {
 				for (Object[] obj : campainDetObjList) {
-					
+
 					CampaignRealTimeDashboard campaignRT=new CampaignRealTimeDashboard();
 					String campaignID=String.valueOf(obj[0]);
 					campaignRT.setCampaignId(String.valueOf(obj[0]));
@@ -939,18 +1202,22 @@ public class CampaignServiceImpl implements CampaignService {
 					String startTime=String.valueOf(obj[5]);
 					String endTime=String.valueOf(obj[6]);
 					String conCall=String.valueOf(obj[7]);
+					String dncID=String.valueOf(obj[8]);
+
 					Integer intConcall=Integer.parseInt(conCall);
 					String currDate=sdf.format(new Date());
 					String currTime=sdfTime.format(new Date());
 					logger.info("Start Date : "+startDate+ " :: End Date"+EndDate);
 					logger.info("Start Time : "+startTime+ " :: End Time"+endTime);
 					logger.info("Current Date : "+currDate+ " :: Current Time"+currTime);
+					String campaignName=String.valueOf(obj[1]);
+					logger.info("Campaign Name : "+campaignName);
 					campaignRT.setStartDate(startDate+" "+startTime);
 					campaignRT.setEndDate(EndDate+" "+endTime);
-					Integer activeCall=campaignDao.getActiveContDetails(campaignID);
+					Integer activeCall=campaignDao.getActiveContDetails(campaignName);
 					campaignRT.setOncall(activeCall);
 					campaignRT.setTotalline(intConcall-activeCall);
-					
+
 					Date startDat=sdf.parse(startDate);
 					Date endDat=sdf.parse(EndDate);
 					Date currDat=sdf.parse(currDate);
@@ -971,7 +1238,6 @@ public class CampaignServiceImpl implements CampaignService {
 					campaignRT.setCampaignStatus(status);
 					Integer contactLength=campaignDao.getCampaignBasedContactCount(campaignID);
 					campaignRT.setListLength(String.valueOf(contactLength));
-					//Added on 04032024					
 					Integer callpending=campaignDao.getCampaginBasedContactStatus(campaignID,"NEW");
 					campaignRT.setPending(callpending);
 					Integer callcompleted=contactLength-callpending;
@@ -983,10 +1249,19 @@ public class CampaignServiceImpl implements CampaignService {
 					campaignRT.setLinebusy(busyCount);
 					Integer NoAnswerCount=campaignDao.getCampaginBasedContactStatus(campaignID,"NOANSWER");
 					campaignRT.setNoanswer(NoAnswerCount);
+					String[] errorCodes=errorcodes.split(",");
+					Integer errorCounts=campaignDao.getActiveContErrorDetails(campaignID, errorCodes);
+					campaignRT.setError(errorCounts);
+
+					campaignRT.setETC(getETC(campaignID, startTim, currTim, endTim,contactLength, callcompleted, callpending,startDat,endDat,currDat));
+
+					campaignRT.setDND(campaignDao.getCampBasedDNCSize(dncID));
+
+
 					campaignRTList.add(campaignRT);
-					//added on 05032024
-					
-					
+
+
+
 				}
 			}
 		}catch(Exception e) {
@@ -995,12 +1270,236 @@ public class CampaignServiceImpl implements CampaignService {
 		return campaignRTList;
 	}
 
+	private String getETC(String campaignID,Date campaingStartTime,Date CurrTime,Date campaignEndTime,int TotalContacts,int completedCalls, int pendingCalls,Date camStartdate,Date camEndDate,Date currDate) {
+		String remDuration=null;
+		Date ectDate=null;
+		try {
+
+			long differenceMillis = Math.abs(camStartdate.getTime() - currDate.getTime());
+			long differenceDays = TimeUnit.DAYS.convert(differenceMillis, TimeUnit.MILLISECONDS);
+			logger.info("Diff in Days :"+differenceDays+ "for the Campaign ID :"+campaignID);
+
+
+			long campDurationinMillis=Math.abs(campaingStartTime.getTime() - campaignEndTime.getTime());
+			long campRunDuration = TimeUnit.HOURS.convert(campDurationinMillis, TimeUnit.MILLISECONDS);
+			logger.info("Daily Camp Running Time :"+campRunDuration);
+
+			long TotalRunnintTime=differenceDays*campRunDuration;
+			long totalRuntilyes=TotalRunnintTime*60*60;
+			logger.info("Total Running Duration in Hours :"+TotalRunnintTime);
+
+			Calendar calCampStart=Calendar.getInstance();
+			calCampStart.setTime(campaingStartTime);
+			Calendar calcurrTime=Calendar.getInstance();
+			calcurrTime.setTime(CurrTime);
+			Calendar calEstTime=Calendar.getInstance();
+
+			long longdiffinMIlls=calcurrTime.getTimeInMillis()-calCampStart.getTimeInMillis();
+			long longdiffinSec=TimeUnit.MILLISECONDS.toSeconds(longdiffinMIlls);
+			logger.info("Diff in Sec :"+longdiffinSec);
+
+			double totalRunDuraininSec=totalRuntilyes+longdiffinSec;
+			double avgCallDuratin=totalRunDuraininSec/completedCalls;
+			double remainngDuration=pendingCalls*avgCallDuratin;
+			logger.info("Average Call Duration :"+remainngDuration);
+			int intRemDuration=(int) remainngDuration;
+			int inthours=intRemDuration/3600;
+			int intminutes=(intRemDuration%3600)/60;
+			int intseconds=intRemDuration%60;
+			remDuration=getWholeValue(inthours)+":"+getWholeValue(intminutes)+":"+getWholeValue(intseconds);
+			logger.info("Rem Duration :"+remDuration);
+			calEstTime.add(Calendar.SECOND, intRemDuration);
+			ectDate=calEstTime.getTime();
+			logger.info("ECT DATE :"+ectDate);
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
+		return remDuration;
+	}
+
+
+	private  String getWholeValue(int data) {
+		return data>9?String.valueOf(data):"0"+String.valueOf(data);
+	}
+
+	public static void main(String[] args) {
+		SimpleDateFormat sdfTime=new SimpleDateFormat("HH:mm:ss");
+		SimpleDateFormat sdf=new SimpleDateFormat("yyyy-MM-dd");
+		try {
+			String startTime="09:00:00";
+			String currTime="11:00:00";
+			String EndTime="17:00:00";
+			String startDate="2024-03-07";
+			String EndDate="2024-03-10";
+			String CurrDate="2024-03-08";
+			Date startTim=sdfTime.parse(startTime);
+			Date currTim=sdfTime.parse(currTime);
+			Date EndTim=sdfTime.parse(EndTime);
+			Date StartDat=sdf.parse(startDate);
+			Date EndDat=sdf.parse(EndDate);
+			Date CurrDat=sdf.parse(CurrDate);
+			System.out.println("Start Time :"+startTim);
+			System.out.println("Curr Time :"+currTim);
+			//getETC("C_01", startTim, currTim, EndTim,13000, 1000, 300,StartDat,EndDat,CurrDat);
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+
 	@Override
-	public int getCountToCall(String productId) {
+	public boolean insertSurveyContactDet(List<Map<String,Object>> listSurveyContact) {
+		boolean  insertionStatus=false;
+		try {
+			for(Map<String,Object> mapSurveyContact:listSurveyContact ) {
+				insertionStatus = campaignDao.insertSurveyContactDet(mapSurveyContact);
+			}
+		} catch (Exception e) {
+			logger.error("Error in ::insertSurveyContactDet " + e);
+		}
+		return insertionStatus;
+	}
+
+
+
+	@Override
+	public String getDummySurveyResponse() {
+		String response=null;
+		try {
+			response="{\"phone\":\"9876098987\",\"actionId\":\"123456789\",\"Survey_Lang\":\"EN\",\"MainSkillset\":\"NAS\",\"subSkillset\":\"NasMember\"}";
+
+		} catch (Exception e) {
+			logger.error("Error in :: Dummy Survey Response " + e);
+		}
+		return response;
+	}
+	@Override
+	public ResponseEntity<GenericResponse> createDnc(DNCDetRequest DNCDetRequest) {
+
+		GenericResponse genericResponse = new GenericResponse();
+		try {
+			boolean done = campaignDao.createDnc(DNCDetRequest);
+			if (done) {
+				genericResponse.setStatus(200);
+				genericResponse.setValue("Success");
+				genericResponse.setMessage("create Dnc successfully");
+			} else {
+				genericResponse.setStatus(400);
+				genericResponse.setValue("Failure");
+				genericResponse.setMessage("Error occured while createDnc details");
+			}
+		} catch (Exception e) {
+			logger.error("Error in CampaignServiceImpl:: createDnc " + e);
+			genericResponse.setStatus(400);
+			genericResponse.setValue("Failure");
+			genericResponse.setMessage("Error occured createDnc details");
+		}
+		return new ResponseEntity<GenericResponse>(new GenericResponse(genericResponse), HttpStatus.OK);
+	}
+
+	@Override
+	public ResponseEntity<GenericResponse> getDnsDetail() {
+		GenericResponse genericResponse = new GenericResponse();
+		List<DNCDetRequest> campaignDetList = null;
+		try {
+			campaignDetList = getDNSDetailList();
+			genericResponse.setStatus(200);
+			genericResponse.setValue(campaignDetList);
+			genericResponse.setMessage("Success");
+		} catch (Exception e) {
+			logger.error("Error in CampaignServiceImpl::createCampaign " + e);
+			genericResponse.setStatus(400);
+			genericResponse.setValue("Failure");
+			genericResponse.setMessage("No data Found");
+		}
+
+		return new ResponseEntity<GenericResponse>(new GenericResponse(genericResponse), HttpStatus.OK);
+	}
+
+	public List<DNCDetRequest> getDNSDetailList() {
+
+		List<DNCDetRequest> campaignDetList;
+		campaignDetList = new ArrayList<>();
+		List<Object[]> campainDetObjList = campaignDao.getdnsDet();
+		if (campainDetObjList != null && !campainDetObjList.isEmpty()) {
+			for (Object[] obj : campainDetObjList) {
+				DNCDetRequest DNCDetRequest = new DNCDetRequest();
+				DNCDetRequest.setDNCID(String.valueOf(obj[0]));
+				DNCDetRequest.setDncName(String.valueOf(obj[1]));
+				DNCDetRequest.setDescription(String.valueOf(obj[2]));
+
+				campaignDetList.add(DNCDetRequest);
+
+				logger.info("dnsDetails :"+DNCDetRequest.toString());
+			}
+		}
+		return campaignDetList;
+	}
+
+	@Override
+	public ResponseEntity<GenericResponse> updateDns(DNCDetRequest DNCDetRequest) {
+		GenericResponse genericResponse = new GenericResponse();
+		try {
+			boolean isUpdated = campaignDao.updateDns(DNCDetRequest);
+			if (isUpdated) {
+				genericResponse.setStatus(200);
+				genericResponse.setValue("Success");
+				genericResponse.setMessage("Campaign updated successfully");
+			} else {
+				genericResponse.setStatus(400);
+				genericResponse.setValue("Failure");
+				genericResponse.setMessage("Error occured while updating Campaign");
+			}
+		} catch (Exception e) {
+			logger.error("Error in CampaignServiceImpl::updateCampaign " + e);
+			genericResponse.setStatus(400);
+			genericResponse.setValue("Failure");
+			genericResponse.setMessage("Error occured while updating Campaign");
+		}
+
+		return new ResponseEntity<GenericResponse>(new GenericResponse(genericResponse), HttpStatus.OK);
+	}
+
+	@Override
+	public boolean createContactone(DncContactDto contactDetDto) {
+		boolean isCreated;
+		try {
+			isCreated = campaignDao.createContactone(contactDetDto);
+		} catch (Exception e) {
+			return false;
+		}
+		return isCreated;
+	}
+
+
+	@Override
+	public List<String> getDNSDetList(String dncID) {
+
+		List<String> campaignDetList;
+		campaignDetList = new ArrayList<>();
+		List<Object[]> campainDetObjList = campaignDao.getCampaignBasedDNClist(dncID);
+		if (campainDetObjList != null && !campainDetObjList.isEmpty()) {
+			for (Object[] obj : campainDetObjList) {
+				String contact=String.valueOf(obj[0]);
+				campaignDetList.add(contact);
+				logger.info("dnsDetails :"+campaignDetList.toString());
+			}
+		}
+		return campaignDetList;
+	}
+
+	
+	@Override
+	public Map<String, List<SurveyContactDetDto>> getSurveyContDet() {
+		return campaignDao.getSurveyContactDet();
+	}
+
+	@Override
+	public int getCountToCall(String productID) {
 		GenericResponse genericResponse = new GenericResponse();
 		int count = 0;
 		try {
-			 count = campaignDao.getCountToCall(productId);
+			count = campaignDao.getCountToCall(productID);
 			genericResponse.setStatus(200);
 			genericResponse.setValue(count);
 			genericResponse.setMessage("Success");
@@ -1014,120 +1513,4 @@ public class CampaignServiceImpl implements CampaignService {
 		return count;
 	}
 
-	@Override
-	public void getMobileDialed(String contactId,String productId, String customerMobile, String status) {
-		campaignDao.getMobileDialed(contactId,productId,customerMobile,status);
-	}
-
-	@Override
-	public ResponseEntity<GenericResponse> createTenant(TenantDetRequest tenantDetRequest) {
-		GenericResponse genericResponse = new GenericResponse();
-		TenantDetResponse response = new TenantDetResponse();
-		try {
-			response = campaignDao.createTenant(tenantDetRequest);
-			genericResponse.setStatus(200);
-			genericResponse.setValue(response);
-			genericResponse.setMessage("Success");
-		} catch (Exception e) {
-			logger.error("Error in CampaignServiceImpl::createTenant " + e);
-			genericResponse.setStatus(400);
-			genericResponse.setValue(response);
-			genericResponse.setMessage("error on while creating tenant");
-		}
-		return new ResponseEntity<GenericResponse>(new GenericResponse(genericResponse), HttpStatus.OK);
-	}
-
-
-	private void getETC(String campaignID,Date campaingStartTime,Date CurrTime,int TotalContacts,int completedCalls, int pendingCalls) {
-		try {
-			Calendar calCampStart=Calendar.getInstance();
-			calCampStart.setTime(campaingStartTime);
-			
-			Calendar calcurrTime=Calendar.getInstance();
-			calcurrTime.setTime(CurrTime);
-			
-			long longdiffinMIlls=calcurrTime.getTimeInMillis()-calCampStart.getTimeInMillis();
-			long longdiffinMinutes=TimeUnit.MILLISECONDS.toSeconds(longdiffinMIlls);
-			System.out.println(longdiffinMinutes);
-			double avgCallDuratin=longdiffinMinutes/completedCalls;
-			double remainngDuration=pendingCalls*avgCallDuratin;
-			System.out.println("Average Call Duration :"+avgCallDuratin);
-		//	calcurrTime.add(Calendar.MINUTE, remainngDuration);
-			
-			
-		}catch(Exception e) {
-			e.printStackTrace();
-		}
-	}
-
-	public ResponseEntity<GenericResponse> getTenantList() {
-		GenericResponse genericResponse = new GenericResponse();
-		List<TenantDetRequest> tenantDetRequestList = null;
-		try {
-			tenantDetRequestList = getTenantDetList();
-			genericResponse.setStatus(200);
-			genericResponse.setValue(tenantDetRequestList);
-			genericResponse.setMessage("Success");
-		} catch (Exception e) {
-			logger.error("Error in CampaignServiceImpl::getTenantList " + e);
-			genericResponse.setStatus(400);
-			genericResponse.setValue("Failure");
-			genericResponse.setMessage("No data Found");
-		}
-
-		return new ResponseEntity<GenericResponse>(new GenericResponse(genericResponse), HttpStatus.OK);
-	}
-
-	private List<TenantDetRequest> getTenantDetList() throws ParseException {
-		List<TenantDetRequest> tenantDetRequestList = new ArrayList<>();
-		List<Object[]> tenantDetRequestListObj = campaignDao.getTenantDet();
-		for (Object[] obj : tenantDetRequestListObj) {
-			TenantDetRequest tenantDetRequest = new TenantDetRequest();
-			tenantDetRequest.setTenant_autogen_id((Integer) obj[0]);
-			tenantDetRequest.setTenantId(String.valueOf(obj[1]));
-			tenantDetRequest.setTenantName(String.valueOf(obj[2]));
-			tenantDetRequest.setLoginUrl(String.valueOf(obj[3]));
-			tenantDetRequest.setAddress(String.valueOf(obj[4]));
-			tenantDetRequest.setAdminUser(String.valueOf(obj[5]));
-			tenantDetRequest.setPassword(String.valueOf(obj[6]));
-			tenantDetRequest.setAddress(String.valueOf(obj[7]));
-			tenantDetRequest.setContactPerson(String.valueOf(obj[8]));
-			tenantDetRequest.setContactEmail(String.valueOf(obj[9]));
-			tenantDetRequest.setPartnerId(String.valueOf(obj[10]));
-			tenantDetRequest.setPartnerName(String.valueOf(obj[11]));
-			tenantDetRequest.setPartnerEmail(String.valueOf(obj[12]));
-
-			tenantDetRequest.setOnBoarding((Timestamp) obj[13]);
-			tenantDetRequest.setStartContract((Timestamp) obj[14]);
-			tenantDetRequest.setEndContract((Timestamp) obj[15]);
-
-			tenantDetRequest.setBilledTo(String.valueOf(obj[16]));
-			tenantDetRequest.setBilledCycle(String.valueOf(obj[17]));
-			tenantDetRequest.setPaymentTerms(String.valueOf(obj[18]));
-			tenantDetRequest.setConcurrency(Integer.parseInt(String.valueOf(obj[19])));
-			tenantDetRequest.setNoOflines((Integer) obj[20]);
-			tenantDetRequest.setNoOfUsers((Integer) obj[21]);
-			tenantDetRequest.setLicenseKey((String) obj[22]);
-			tenantDetRequest.setDeploymentModel(String.valueOf(obj[23]));
-			tenantDetRequest.setServiceStatus((Boolean) obj[24]);
-			tenantDetRequestList.add(tenantDetRequest);
-		}
-			return tenantDetRequestList;
-	}
-	public static void main(String[] args) {
-		SimpleDateFormat sdfTime=new SimpleDateFormat("HH:mm:ss");
-		try {
-			String startTime="08:00:00";
-			String currTime="09:11:00";
-			Date startTim=sdfTime.parse(startTime);
-			Date currTim=sdfTime.parse(currTime);
-			System.out.println("Start Time :"+startTim);
-			System.out.println("Curr Time :"+currTim);
-		}catch(Exception e) {
-			e.printStackTrace();
-		}
-	}
-
-
-	
 }

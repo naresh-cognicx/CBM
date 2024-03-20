@@ -14,8 +14,6 @@ import com.cognicx.AppointmentRemainder.dao.CampaignDao;
 @Service
 public class AsteriskService {
 
-
-
 	@Autowired
 	CampaignDao campaignDao;
 
@@ -27,8 +25,14 @@ public class AsteriskService {
 			String calluid=callconnEvent.getCalluid();
 			String productID=callconnEvent.getProductid();
 			String phone=callconnEvent.getPhone();
+			String campaignName = callconnEvent.getCampaingnname();
+
 			logger.info("AsteriskService  insertDialContDetails Method Invoked");
-			campaignDao.insertActiveContDetails(calluid, "Dial", productID, phone);
+			logger.info("Call ID :"+calluid);
+			logger.info("productID :"+productID);
+			logger.info("phone :"+phone);
+			logger.info("campaign : "+campaignName);
+			campaignDao.insertActiveContDetails(calluid, "Dial", productID, phone,campaignName);
 		}catch(Exception e) {
 			logger.error("Error in AsteriskService::update Act Cont " + e);
 		}
@@ -40,8 +44,13 @@ public class AsteriskService {
 			String calluid=callconnEvent.getCalluid();
 			String productID=callconnEvent.getProductid();
 			String phone=callconnEvent.getPhone();
+			String campaignName = callconnEvent.getCampaingnname();
 			logger.info("AsteriskService  insertActiveContDetails Method Invoked");
-			campaignDao.updateActiveContDetails(calluid, "Connected", productID, phone);
+			logger.info("Call ID :"+calluid);
+			logger.info("productID :"+productID);
+			logger.info("phone :"+phone);
+			logger.info("campaign : "+campaignName);
+			campaignDao.insertActiveContDetails(calluid, "Connected", productID, phone,campaignName);
 		}catch(Exception e) {
 			logger.error("Error in AsteriskService::update Act Cont " + e);
 		}
@@ -52,11 +61,17 @@ public class AsteriskService {
 			callhangupEvent callhangEvent=(callhangupEvent) userEvent;
 			String calluid=callhangEvent.getCalluid();
 			String productID=callhangEvent.getProductid();
+			String errocode=callhangEvent.getHangupcause();
 			String phone=callhangEvent.getPhone();
-			String errorcode = callhangEvent.getHangupcause();
-			logger.info("Hang UP Cause errorcode : "+errorcode);
+			String campaignName = callhangEvent.getCampaingnname();
+			logger.info("Hang UP Cause :"+errocode);
 			logger.info("AsteriskService  updateActiveContDetails Method Invoked");
-			campaignDao.updateActiveContDetails(calluid, "HangUp", productID, phone);
+			logger.info("AsteriskService  insertActiveContDetails Method Invoked");
+			logger.info("Call ID :"+calluid);
+			logger.info("productID :"+productID);
+			logger.info("phone :"+phone);
+			logger.info("campaign : "+campaignName);
+			campaignDao.updateActiveContDetails(calluid, "HangUp",productID, phone,errocode,campaignName);
 		}catch(Exception e) {
 			logger.error("Error in AsteriskService::update Act Cont " + e);
 		}

@@ -16,7 +16,7 @@ public class CampaignRealTimeDashboard {
 	private int oncall;
 	private int totalline;
 	private int error;
-	private int ETC;
+	private String ETC;
 	private int DND;
 	
 	
@@ -142,11 +142,11 @@ public class CampaignRealTimeDashboard {
 		this.error = error;
 	}
 
-	public int getETC() {
+	public String getETC() {
 		return ETC;
 	}
 
-	public void setETC(int eTC) {
+	public void setETC(String eTC) {
 		ETC = eTC;
 	}
 

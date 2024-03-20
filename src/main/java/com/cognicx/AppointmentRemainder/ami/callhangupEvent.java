@@ -1,37 +1,27 @@
 package com.cognicx.AppointmentRemainder.ami;
 
 import org.asteriskjava.manager.event.UserEvent;
-import org.springframework.beans.factory.annotation.Value;
 
 public class callhangupEvent extends UserEvent{
 
 	private String calluid;
+
+
+
 	private String productid;
 	private String phone;
 	private String appdata;
-
-	@Value("${cont.errorcodes}")
 	private String hangupcause;
+	private String campaingnname;
 
 	public String getHangupcause() {
-		System.out.println("Getting Hang Up Cause :"+hangupcause);
 		return hangupcause;
 	}
 
 	public void setHangupcause(String hangupcause) {
-		System.out.println("setting Hang Up Cause "+hangupcause);
 		this.hangupcause = hangupcause;
 	}
 
-	public String getProductid() {
-		System.out.println("Getting Product ID in Call Hang UP"+productid);
-		return productid;
-	}
-
-	public void setProductid(String productid) {
-		System.out.println("setting Product ID in Call Hang UP "+productid);
-		this.productid = productid;
-	}
 
 	public String getPhone() {
 		System.out.println("Getting Phone number in Call Hang UP "+phone);
@@ -68,13 +58,27 @@ public class callhangupEvent extends UserEvent{
 	}
 
 
+	public String getCampaingnname() {
+		return campaingnname;
+	}
+
+	public void setCampaingnname(String campaingnname) {
+		this.campaingnname = campaingnname;
+	}
 
 
 	/**
-	 * 
+	 *
 	 */
 	private static final long serialVersionUID = 1L;
-	
-	
+
+	public String getProductid() {
+		return productid;
+	}
+
+	public void setProductid(String productid) {
+		this.productid = productid;
+	}
+
 
 }

@@ -11,6 +11,8 @@ public class ReportRequest {
 	private String callerChoice;
 	private String contactId;
 
+	private String userGroup;
+
 	public String getCampaignId() {
 		return campaignId;
 	}
@@ -73,5 +75,13 @@ public class ReportRequest {
 
 	public void setContactId(String contactId) {
 		this.contactId = contactId;
+	}
+
+	public String getUserGroup() {
+		return userGroup;
+	}
+
+	public void setUserGroup(String userGroup) {
+		this.userGroup = userGroup;
 	}
 }

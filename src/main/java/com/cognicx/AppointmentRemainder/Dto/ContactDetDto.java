@@ -3,6 +3,7 @@ package com.cognicx.AppointmentRemainder.Dto;
 import java.math.BigInteger;
 
 public class ContactDetDto {
+
 	private String contactId;
 	private String campaignId;
 	private String campaignName;

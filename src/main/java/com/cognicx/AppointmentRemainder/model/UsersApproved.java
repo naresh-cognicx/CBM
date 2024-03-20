@@ -22,7 +22,7 @@ import org.hibernate.annotations.GenerationTime;
  *
  */
 @Entity
-@Table(name = "users_approved", schema = "user_rule")
+@Table(name = "users_approved", schema = "appointment_remainder")
 @NamedQuery(name = "UsersApproved.findAll", query = "SELECT u FROM UsersApproved u")
 public class UsersApproved implements Serializable {
 	private static final long serialVersionUID = 1L;

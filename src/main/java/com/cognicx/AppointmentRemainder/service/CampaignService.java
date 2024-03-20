@@ -4,14 +4,22 @@ import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
 
-import com.cognicx.AppointmentRemainder.Request.*;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.ResponseEntity;
 
 import com.cognicx.AppointmentRemainder.Dto.CallRetryReport;
 import com.cognicx.AppointmentRemainder.Dto.ContactDetDto;
 import com.cognicx.AppointmentRemainder.Dto.CustomerDataDto;
+import com.cognicx.AppointmentRemainder.Dto.DncContactDto;
+import com.cognicx.AppointmentRemainder.Dto.SurveyContactDetDto;
 import com.cognicx.AppointmentRemainder.Dto.UploadHistoryDto;
+import com.cognicx.AppointmentRemainder.Request.CampaignDetRequest;
+import com.cognicx.AppointmentRemainder.Request.CampaignRealTimeDashboard;
+import com.cognicx.AppointmentRemainder.Request.CampaignStatus;
+import com.cognicx.AppointmentRemainder.Request.DNCDetRequest;
+import com.cognicx.AppointmentRemainder.Request.ReportRequest;
+import com.cognicx.AppointmentRemainder.Request.SurveyDetRequest;
+import com.cognicx.AppointmentRemainder.Request.UpdateCallDetRequest;
 import com.cognicx.AppointmentRemainder.response.GenericResponse;
 import com.cognicx.AppointmentRemainder.response.GenericResponseReport;
 
@@ -19,7 +27,7 @@ public interface CampaignService {
 
 	ResponseEntity<GenericResponse> createCampaign(CampaignDetRequest campaignDetRequest);
 
-	ResponseEntity<GenericResponse> getCampaignDetail();
+	ResponseEntity<GenericResponse> getCampaignDetail(String userGroup);
 
 	ResponseEntity<GenericResponse> updateCampaign(CampaignDetRequest campaignDetRequest);
 
@@ -27,6 +35,8 @@ public interface CampaignService {
 
 	boolean createContact(ContactDetDto contactDetDto);
 
+	List<CampaignDetRequest> getCampaignDetList(String userGroup);
+	
 	List<CampaignDetRequest> getCampaignDetList();
 
 	Map<String, List<ContactDetDto>> getContactDet();
@@ -51,10 +61,11 @@ public interface CampaignService {
 
 	ResponseEntity<GenericResponse> getRetryReport(ReportRequest reportRequest) throws Exception;
 
+	ResponseEntity<GenericResponse> getRetryReport(ReportRequest reportRequest,String userGroup) throws Exception;
 	ResponseEntity<GenericResponseReport> getLeadWiseSummary(ReportRequest reportRequest);
-
+	ResponseEntity<GenericResponseReport> getLeadWiseSummary(ReportRequest reportRequest,String userGroup);
 	ResponseEntity<GenericResponseReport> getCallVolumeReport(ReportRequest reportRequest);
-
+	ResponseEntity<GenericResponseReport> getCallVolumeReport(ReportRequest reportRequest,String userGroup);
 	boolean createDummyContact(ContactDetDto contactDetDto);
 	
 	//Added on 05/02/2024	
@@ -64,14 +75,24 @@ public interface CampaignService {
 	ResponseEntity<GenericResponse> getRealTimeDashboard();
 	List<CampaignRealTimeDashboard> getRealTimeData() throws Exception;
 
+	boolean insertSurveyContactDet(List<Map<String,Object>> listSurveyContact);
+	
 
-    int getCountToCall(String actionId);
+	
+	String getDummySurveyResponse();
+	ResponseEntity<GenericResponse> createDnc(DNCDetRequest dNCDetRequest);
 
-    void getMobileDialed(String contactId,String productId,String customerMobile,String status);
+	ResponseEntity<GenericResponse> getDnsDetail();
 
-    ResponseEntity<GenericResponse> createTenant(TenantDetRequest tenantDetRequest);
+	ResponseEntity<GenericResponse> updateDns(DNCDetRequest dNCDetRequest);
 
-	ResponseEntity<GenericResponse> getTenantList();
+	boolean createContactone(DncContactDto contactDetDto);
+	
+	List<String> getDNSDetList(String dncID);
+	
+	 Map<String, List<SurveyContactDetDto>> getSurveyContDet();
 
-	ResponseEntity<GenericResponse> updateTenant(TenantDetRequest tenantDetRequest);
+	int getCountToCall(String productID);
+
+	List<DNCDetRequest> getDNSDetailList();
 }
