@@ -1255,7 +1255,7 @@ public class CampaignServiceImpl implements CampaignService {
 					Integer dncCount=campaignDao.getCampBasedDNCSize(dncID);
 					campaignRT.setDND(campaignDao.getCampBasedDNCSize(dncID));
 					logger.info("DNC count based on campaign :: "+dncCount);
-					Integer callpending=contactLength-callcompletedNew-dncCount;
+					Integer callpending=contactLength-callcompletedNew;
 					logger.info("Pending count :: "+ callpending);
 					campaignRT.setPending(callpending);
 					Integer busyCount=campaignDao.getCampaginBasedContactStatus(campaignName,"BUSY");
@@ -1354,7 +1354,7 @@ public class CampaignServiceImpl implements CampaignService {
 					Integer dncCount=campaignDao.getCampBasedDNCSize(dncID);
 					campaignRT.setDND(campaignDao.getCampBasedDNCSize(dncID));
 					logger.info("DNC count based on campaign :: "+dncCount);
-					Integer callpending=contactLength-callcompletedNew-dncCount;
+					Integer callpending=contactLength-callcompletedNew;
 					logger.info("Pending count :: "+ callpending);
 					campaignRT.setPending(callpending);
 					Integer busyCount=campaignDao.getCampaginBasedContactStatus(campaignName,"BUSY");

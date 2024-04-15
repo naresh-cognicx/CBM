@@ -1495,7 +1495,7 @@ public class CampaignController {
 
     @SuppressWarnings("unchecked")
     //Disabled now for testing purpose
-    //@Scheduled(cron = "0 0/2 * * * *") // 15 minutes (15 * 60 * 1000 milliseconds)
+    @Scheduled(cron = "0 0/2 * * * *") // 15 minutes (15 * 60 * 1000 milliseconds)
     public void fetchData() {
         try {
             String token = getTokenData();

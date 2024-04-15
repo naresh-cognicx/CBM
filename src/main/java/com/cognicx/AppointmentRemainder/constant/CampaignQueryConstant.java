@@ -220,7 +220,7 @@ public class CampaignQueryConstant {
     public static final String GET_CAMPAIGN_DET_RT_BY_USERGROUP = "select campaign_id,name,status,start_date,end_date,start_time,end_time,concurrent_call,dncId,retry_count FROM appointment_remainder.campaign_det where  groupname=:userGroup";
     public static final String DELETE_CONTACT_DET1 = "Delete from appointment_remainder.DNC_Contact where dncId=:DNCID and contactNumber=:contactNumber";
     
-    public static final String INSERT_SURVEY_CONTACT_DET_CT = "insert into appointment_remainder.contact_det (customer_mobile_number,language,campaign_name,subskill_set,call_status,rec_upt_date,call_retry_count,due_date,campaign_id) values (:phone,:Survey_Lang,:MainSkillset,:subSkillset,:call_status,getdate(),'0',:due_date,:campaign_id)";
+    public static final String INSERT_SURVEY_CONTACT_DET_CT = "insert into appointment_remainder.contact_det (customer_mobile_number,language,campaign_name,subskill_set,call_status,rec_upt_date,call_retry_count,due_date,campaign_id,actionId) values (:phone,:Survey_Lang,:MainSkillset,:subSkillset,:call_status,getdate(),'0',:due_date,:campaign_id,:actionId)";
     public static final String GET_COMPLETED_CALL_COUNT_CT = "select count(*) from appointment_remainder.contact_det where call_status != 'ANSWERED' and call_retry_count>=:campaigncount";
 
     public static final String GET_SURVEY_CONTACT_DET_CT = "select campaign_name,customer_mobile_number,actionId, language,subskill_set,call_status,rec_upt_date,call_retry_count from appointment_remainder.contact_det where call_status !='ANSWERED'";
